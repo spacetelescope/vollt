@@ -1,3 +1,6 @@
+/nbproject/private/
+/build/
+/dist/
 ADQLLib/build/**
 UWSLib/build/**
 TAPLib/build/**
