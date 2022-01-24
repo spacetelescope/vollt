@@ -16,7 +16,7 @@ package adql.translator;
  * You should have received a copy of the GNU Lesser General Public License
  * along with ADQLLibrary.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright 2017-2019 - Astronomisches Rechen Institut (ARI),
+ * Copyright 2017-2021 - Astronomisches Rechen Institut (ARI),
  *                       UDS/Centre de Données astronomiques de Strasbourg (CDS)
  */
 
@@ -58,11 +58,7 @@ import adql.query.operand.NumericConstant;
 import adql.query.operand.Operation;
 import adql.query.operand.StringConstant;
 import adql.query.operand.WrappedOperand;
-import adql.query.operand.function.ADQLFunction;
-import adql.query.operand.function.MathFunction;
-import adql.query.operand.function.SQLFunction;
-import adql.query.operand.function.SQLFunctionType;
-import adql.query.operand.function.UserDefinedFunction;
+import adql.query.operand.function.*;
 import adql.query.operand.function.geometry.AreaFunction;
 import adql.query.operand.function.geometry.BoxFunction;
 import adql.query.operand.function.geometry.CentroidFunction;
@@ -162,7 +158,7 @@ import adql.query.operand.function.geometry.RegionFunction;
  * </p>
  *
  * @author Gr&eacute;gory Mantelet (ARI;CDS)
- * @version 1.5 (03/2019)
+ * @version 1.5 (12/2021)
  * @since 1.4
  *
  * @see PostgreSQLTranslator
@@ -839,6 +835,11 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 
 	@Override
 	public String translate(MathFunction fct) throws TranslationException{
+		return getDefaultADQLFunction(fct);
+	}
+
+	@Override
+	public String translate(CoalesceFunction fct) throws TranslationException{
 		return getDefaultADQLFunction(fct);
 	}
 
