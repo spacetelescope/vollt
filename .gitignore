@@ -4,3 +4,6 @@
 ADQLLib/build/**
 UWSLib/build/**
 TAPLib/build/**
+/bin/
+/reports/
+/antBuild/
