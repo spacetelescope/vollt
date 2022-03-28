@@ -5,6 +5,8 @@ name: Java CI ant build ADQL lib w junit
 
 on:
   push:
+    branches:
+      - main
   pull_request:
 
 jobs:
