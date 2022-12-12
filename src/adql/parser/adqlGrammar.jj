@@ -31,7 +31,7 @@
 * printed else it will be the message "Correct syntax".
 *
 *  Author:  Gr&eacute;gory Mantelet (CDS;ARI)
-*  Version: 1.5-2 (10/2020)
+*  Version: 1.5-3 (12/2021)
 */
 
 							/* ########### */
@@ -119,7 +119,7 @@ import adql.translator.TranslationException;
 * @see ADQLQueryFactory
 *
 * @author Gr&eacute;gory Mantelet (CDS;ARI)
-* @version 1.5-2 (10/2020)
+* @version 1.5-3 (12/2021)
 */
 public class ADQLParser {
 	
@@ -1033,7 +1033,7 @@ SKIP : { < " " | "\t" | "\n" | "\r" | "\r\n" > }
 /* ************************************************************************** */
 
 TOKEN : {
-	< SQL_RESERVED_WORD: ("ABSOLUTE"|"ACTION"|"ADD"|"ALLOCATE"|"ALTER"|"ANY"|"ARE"|"ASSERTION"|"AT"|"AUTHORIZATION"|"BEGIN"|"BIT"|"BIT_LENGTH"|"BOTH"|"CASCADE"|"CASCADED"|"CASE"|"CAST"|"CATALOG"|"CHAR"|"CHARACTER"|"CHAR_LENGTH"|"CHARACTER_LENGTH"|"CHECK"|"CLOSE"|"COALESCE"|"COLLATE"|"COLLATION"|"COLUMN"|"COMMIT"|"CONNECT"|"CONNECTION"|"CONSTRAINT"|"CONSTRAINTS"|"CONTINUE"|"CONVERT"|"CORRESPONDING"|"CREATE"|"CURRENT"|"CURRENT_DATE"|"CURRENT_TIME"|"CURRENT_TIMESTAMP"|"CURRENT_USER"|"CURSOR"|"DATE"|"DAY"|"DEALLOCATE"|"DECIMAL"|"DECLARE"|"DEFAULT"|"DEFERRABLE"|"DEFERRED"|"DELETE"|"DESCRIBE"|"DESCRIPTOR"|"DIAGNOSTICS"|"DISCONNECT"|"DOMAIN"|"DOUBLE"|"DROP"|"ELSE"|"END"|"END-EXEC"|"ESCAPE"|"EXCEPT"|"EXCEPTION"|"EXEC"|"EXECUTE"|"EXTERNAL"|"EXTRACT"|"FALSE"|"FETCH"|"FIRST"|"FLOAT"|"FOR"|"FOREIGN"|"FOUND"|"GET"|"GLOBAL"|"GO"|"GOTO"|"GRANT"|"HOUR"|"IDENTITY"|"IMMEDIATE"|"INDICATOR"|"INITIALLY"|"INPUT"|"INSENSITIVE"|"INSERT"|"INT"|"INTEGER"|"INTERSECT"|"INTERVAL"|"INTO"|"ISOLATION"|"KEY"|"LANGUAGE"|"LAST"|"LEADING"|"LEVEL"|"LOCAL"|"LOWER"|"MATCH"|"MINUTE"|"MODULE"|"MONTH"|"NAMES"|"NATIONAL"|"NCHAR"|"NEXT"|"NO"|"NULLIF"|"NUMERIC"|"OCTET_LENGTH"|"OF"|"ONLY"|"OPEN"|"OPTION"|"OUTPUT"|"OVERLAPS"|"PAD"|"PARTIAL"|"POSITION"|"PRECISION"|"PREPARE"|"PRESERVE"|"PRIMARY"|"PRIOR"|"PRIVILEGES"|"PROCEDURE"|"PUBLIC"|"READ"|"REAL"|"REFERENCES"|"RELATIVE"|"RESTRICT"|"REVOKE"|"ROLLBACK"|"ROWS"|"SCHEMA"|"SCROLL"|"SECOND"|"SECTION"|"SESSION"|"SESSION_USER"|"SET"|"SIZE"|"SMALLINT"|"SOME"|"SPACE"|"SQL"|"SQLCODE"|"SQLERROR"|"SQLSTATE"|"SUBSTRING"|"SYSTEM_USER"|"TABLE"|"TEMPORARY"|"THEN"|"TIME"|"TIMESTAMP"|"TIMEZONE_HOUR"|"TIMEZONE_MINUTE"|"TO"|"TRAILING"|"TRANSACTION"|"TRANSLATE"|"TRANSLATION"|"TRIM"|"TRUE"|"UNION"|"UNIQUE"|"UNKNOWN"|"UPDATE"|"UPPER"|"USAGE"|"USER"|"VALUE"|"VALUES"|"VARCHAR"|"VARYING"|"VIEW"|"WHEN"|"WHENEVER"|"WITH"|"WORK"|"WRITE"|"YEAR"|"ZONE") >
+	< SQL_RESERVED_WORD: ("ABSOLUTE"|"ACTION"|"ADD"|"ALLOCATE"|"ALTER"|"ANY"|"ARE"|"ASSERTION"|"AT"|"AUTHORIZATION"|"BEGIN"|"BIT"|"BIT_LENGTH"|"BOTH"|"CASCADE"|"CASCADED"|"CASE"|"CAST"|"CATALOG"|"CHAR"|"CHARACTER"|"CHAR_LENGTH"|"CHARACTER_LENGTH"|"CHECK"|"CLOSE"|"COLLATE"|"COLLATION"|"COLUMN"|"COMMIT"|"CONNECT"|"CONNECTION"|"CONSTRAINT"|"CONSTRAINTS"|"CONTINUE"|"CONVERT"|"CORRESPONDING"|"CREATE"|"CURRENT"|"CURRENT_DATE"|"CURRENT_TIME"|"CURRENT_TIMESTAMP"|"CURRENT_USER"|"CURSOR"|"DATE"|"DAY"|"DEALLOCATE"|"DECIMAL"|"DECLARE"|"DEFAULT"|"DEFERRABLE"|"DEFERRED"|"DELETE"|"DESCRIBE"|"DESCRIPTOR"|"DIAGNOSTICS"|"DISCONNECT"|"DOMAIN"|"DOUBLE"|"DROP"|"ELSE"|"END"|"END-EXEC"|"ESCAPE"|"EXCEPT"|"EXCEPTION"|"EXEC"|"EXECUTE"|"EXTERNAL"|"EXTRACT"|"FALSE"|"FETCH"|"FIRST"|"FLOAT"|"FOR"|"FOREIGN"|"FOUND"|"GET"|"GLOBAL"|"GO"|"GOTO"|"GRANT"|"HOUR"|"IDENTITY"|"IMMEDIATE"|"INDICATOR"|"INITIALLY"|"INPUT"|"INSENSITIVE"|"INSERT"|"INT"|"INTEGER"|"INTERSECT"|"INTERVAL"|"INTO"|"ISOLATION"|"KEY"|"LANGUAGE"|"LAST"|"LEADING"|"LEVEL"|"LOCAL"|"LOWER"|"MATCH"|"MINUTE"|"MODULE"|"MONTH"|"NAMES"|"NATIONAL"|"NCHAR"|"NEXT"|"NO"|"NULLIF"|"NUMERIC"|"OCTET_LENGTH"|"OF"|"ONLY"|"OPEN"|"OPTION"|"OUTPUT"|"OVERLAPS"|"PAD"|"PARTIAL"|"POSITION"|"PRECISION"|"PREPARE"|"PRESERVE"|"PRIMARY"|"PRIOR"|"PRIVILEGES"|"PROCEDURE"|"PUBLIC"|"READ"|"REAL"|"REFERENCES"|"RELATIVE"|"RESTRICT"|"REVOKE"|"ROLLBACK"|"ROWS"|"SCHEMA"|"SCROLL"|"SECOND"|"SECTION"|"SESSION"|"SESSION_USER"|"SET"|"SIZE"|"SMALLINT"|"SOME"|"SPACE"|"SQL"|"SQLCODE"|"SQLERROR"|"SQLSTATE"|"SUBSTRING"|"SYSTEM_USER"|"TABLE"|"TEMPORARY"|"THEN"|"TIME"|"TIMESTAMP"|"TIMEZONE_HOUR"|"TIMEZONE_MINUTE"|"TO"|"TRAILING"|"TRANSACTION"|"TRANSLATE"|"TRANSLATION"|"TRIM"|"TRUE"|"UNION"|"UNIQUE"|"UNKNOWN"|"UPDATE"|"UPPER"|"USAGE"|"USER"|"VALUE"|"VALUES"|"VARCHAR"|"VARYING"|"VIEW"|"WHEN"|"WHENEVER"|"WITH"|"WORK"|"WRITE"|"YEAR"|"ZONE") >
 }
 
 /* *********** */
@@ -1133,6 +1133,13 @@ TOKEN : {
 |	< MIN: "MIN" >
 |	< SUM: "SUM" >
 |	< COUNT: "COUNT" >
+}
+
+/* ********************* */
+/* Conditional functions */
+/* ********************* */
+TOKEN : {
+   < COALESCE: "COALESCE" >
 }
 
 /* ************** */
@@ -1305,7 +1312,8 @@ void Select(): {ClauseSelect select = query.getSelect(); SelectItem item=null; T
 	(<COMMA> item=SelectItem() {select.add(item);})*
 	{
 		TextPosition lastItemPos = query.getSelect().get(query.getSelect().size()-1).getPosition();
-		select.setPosition(new TextPosition(start.beginLine, start.beginColumn, lastItemPos.endLine, lastItemPos.endColumn));	}
+		select.setPosition(new TextPosition(start.beginLine, start.beginColumn, lastItemPos.endLine, lastItemPos.endColumn));
+	}
 }
 
 SelectItem SelectItem(): {IdentifierItems identifiers = new IdentifierItems(true); IdentifierItem id = null, label = null; ADQLOperand op = null; SelectItem item; Token starToken;} {
@@ -1349,7 +1357,8 @@ SelectItem SelectItem(): {IdentifierItems identifiers = new IdentifierItems(true
 			if (label != null){
 				item.setCaseSensitive(label.caseSensitivity);
 				item.setPosition(new TextPosition(op.getPosition(), label.position));
-			}else				item.setPosition(new TextPosition(op.getPosition()));
+			}else
+				item.setPosition(new TextPosition(op.getPosition()));
 			return item;
 		}catch(Exception ex){
 			throw generateParseException(ex);
@@ -1668,9 +1677,10 @@ ADQLOperand StringValueExpressionPrimary(): {StringConstant expr; ADQLColumn col
 
 ADQLOperand ValueExpression(): {ADQLOperand valueExpr = null; Token left, right; } {
 	try{
-		(LOOKAHEAD((<PLUS>|<MINUS>) | (Factor() (<PLUS>|<MINUS>|<ASTERISK>|<DIVIDE>))) valueExpr=NumericExpression()
+		( LOOKAHEAD((<PLUS>|<MINUS>) | (Factor() (<PLUS>|<MINUS>|<ASTERISK>|<DIVIDE>))) valueExpr=NumericExpression()
 		| LOOKAHEAD(<COORDSYS> | (StringFactor() <CONCAT>)) valueExpr=StringExpression()
 		| LOOKAHEAD(<LEFT_PAR>) left=<LEFT_PAR> valueExpr=ValueExpression() right=<RIGHT_PAR> { valueExpr = queryFactory.createWrappedOperand(valueExpr); ((WrappedOperand)valueExpr).setPosition(new TextPosition(left, right)); }
+		| LOOKAHEAD(<COALESCE> <LEFT_PAR>) valueExpr=ConditionalFunction()
 		| LOOKAHEAD(<REGULAR_IDENTIFIER_CANDIDATE> <LEFT_PAR>) valueExpr=UserDefinedFunction()
 		| LOOKAHEAD(2) valueExpr=GeometryValueFunction()
 		| LOOKAHEAD(Column()) valueExpr=Column()
@@ -1691,6 +1701,22 @@ ADQLOperand ValueExpression(): {ADQLOperand valueExpr = null; Token left, right;
 	}catch(Exception ex){
 		throw generateParseException(ex);
 	}
+}
+
+ADQLOperand ConditionalFunction(): {Token fct, end; ArrayList<ADQLOperand> operands = new ArrayList<ADQLOperand>(3); ADQLOperand op; CoalesceFunction func;} {
+    fct=<COALESCE> <LEFT_PAR>
+    op=ValueExpression() { operands.add(op); }
+    (<COMMA> op=ValueExpression() { operands.add(op); } )+
+    end=<RIGHT_PAR>
+    {
+        try{
+            CoalesceFunction coalesce = new CoalesceFunction(operands);
+            coalesce.setPosition(new TextPosition(fct, end));
+            return coalesce;
+        }catch(Exception ex){
+            throw generateParseException(ex);
+        }
+    }
 }
 
 ADQLOperand NumericExpression(): {Token sign=null; ADQLOperand leftOp, rightOp=null;} {
@@ -1772,7 +1798,8 @@ ADQLOperand StringExpression(): {ADQLOperand leftOp; ADQLOperand rightOp = null;
 	)*
 	{
 		if (leftOp instanceof Concatenation){
-			Concatenation concat = (Concatenation)leftOp;			concat.setPosition(new TextPosition(concat.get(0).getPosition(), concat.get(concat.size()-1).getPosition()));
+			Concatenation concat = (Concatenation)leftOp;
+			concat.setPosition(new TextPosition(concat.get(0).getPosition(), concat.get(concat.size()-1).getPosition()));
 		}
 	  return leftOp;
 	}
@@ -1788,7 +1815,8 @@ ADQLOperand StringFactor(): {ADQLOperand op;} {
 GeometryValue<GeometryFunction> GeometryExpression(): {ADQLColumn col = null; GeometryFunction gf = null;} {
 	(col=Column() | gf=GeometryValueFunction())
 	{
-		if (col != null){		  	col.setExpectedType('G');
+		if (col != null){
+		  	col.setExpectedType('G');
 			return new GeometryValue<GeometryFunction>(col);
 		}else
 			return new GeometryValue<GeometryFunction>(gf);
@@ -1804,7 +1832,8 @@ ClauseConstraints ConditionsList(ClauseConstraints clause): {ADQLConstraint cons
 		constraint=Constraint()
 		{
 			if (notOp){
-			  	TextPosition oldPos = constraint.getPosition();				constraint = queryFactory.createNot(constraint);
+			  	TextPosition oldPos = constraint.getPosition();
+				constraint = queryFactory.createNot(constraint);
 				((NotConstraint)constraint).setPosition(new TextPosition(op.beginLine, op.beginColumn, oldPos.endLine, oldPos.endColumn));
 			}
 			notOp = false;
@@ -1836,7 +1865,8 @@ ClauseConstraints ConditionsList(ClauseConstraints clause): {ADQLConstraint cons
 		throw generateParseException(ex);
 	}
 	{
-	  	if (!clause.isEmpty()){	  		TextPosition start = clause.get(0).getPosition();
+	  	if (!clause.isEmpty()){
+	  		TextPosition start = clause.get(0).getPosition();
 	  		TextPosition end = clause.get(clause.size()-1).getPosition();
 			clause.setPosition(new TextPosition(start, end));
 		}
@@ -2013,7 +2043,8 @@ GeometryFunction GeometryFunction(): {Token fct=null, end; GeometryValue<Geometr
 				{
 					if (p1 != null)
 						gvp1 = new GeometryValue<PointFunction>(p1);
-					else{						col1.setExpectedType('G');
+					else{
+						col1.setExpectedType('G');
 						gvp1 = new GeometryValue<PointFunction>(col1);
 					}
 				}
@@ -2022,7 +2053,8 @@ GeometryFunction GeometryFunction(): {Token fct=null, end; GeometryValue<Geometr
 				{
 					if (p2 != null)
 						gvp2 = new GeometryValue<PointFunction>(p2);
-					else{						col2.setExpectedType('G');
+					else{
+						col2.setExpectedType('G');
 						gvp2 = new GeometryValue<PointFunction>(col2);
 					}
 				} 

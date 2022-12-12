@@ -16,7 +16,7 @@ package adql.translator;
  * You should have received a copy of the GNU Lesser General Public License
  * along with ADQLLibrary.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * Copyright 2012,2014 - UDS/Centre de Données astronomiques de Strasbourg (CDS),
+ * Copyright 2012-2021 - UDS/Centre de Données astronomiques de Strasbourg (CDS),
  *                       Astronomisches Rechen Institut (ARI)
  */
 
@@ -47,10 +47,7 @@ import adql.query.operand.NumericConstant;
 import adql.query.operand.Operation;
 import adql.query.operand.StringConstant;
 import adql.query.operand.WrappedOperand;
-import adql.query.operand.function.ADQLFunction;
-import adql.query.operand.function.MathFunction;
-import adql.query.operand.function.SQLFunction;
-import adql.query.operand.function.UserDefinedFunction;
+import adql.query.operand.function.*;
 import adql.query.operand.function.geometry.AreaFunction;
 import adql.query.operand.function.geometry.BoxFunction;
 import adql.query.operand.function.geometry.CentroidFunction;
@@ -70,7 +67,7 @@ import adql.query.operand.function.geometry.RegionFunction;
  * Translates ADQL objects into any language (i.e. SQL).
  * 
  * @author Gr&eacute;gory Mantelet (CDS)
- * @version 01/2012
+ * @version 1.5 (12/2021)
  * 
  * @see PostgreSQLTranslator
  */
@@ -140,6 +137,9 @@ public interface ADQLTranslator {
 	public String translate(SQLFunction fct) throws TranslationException;
 
 	public String translate(MathFunction fct) throws TranslationException;
+
+	/** @since 1.5 */
+	public String translate(CoalesceFunction fct) throws TranslationException;
 
 	public String translate(UserDefinedFunction fct) throws TranslationException;
 

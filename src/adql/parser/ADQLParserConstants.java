@@ -115,93 +115,95 @@ public interface ADQLParserConstants {
   /** RegularExpression Id. */
   int COUNT = 53;
   /** RegularExpression Id. */
-  int BOX = 54;
+  int COALESCE = 54;
   /** RegularExpression Id. */
-  int CENTROID = 55;
+  int BOX = 55;
   /** RegularExpression Id. */
-  int CIRCLE = 56;
+  int CENTROID = 56;
   /** RegularExpression Id. */
-  int POINT = 57;
+  int CIRCLE = 57;
   /** RegularExpression Id. */
-  int POLYGON = 58;
+  int POINT = 58;
   /** RegularExpression Id. */
-  int REGION = 59;
+  int POLYGON = 59;
   /** RegularExpression Id. */
-  int CONTAINS = 60;
+  int REGION = 60;
   /** RegularExpression Id. */
-  int INTERSECTS = 61;
+  int CONTAINS = 61;
   /** RegularExpression Id. */
-  int AREA = 62;
+  int INTERSECTS = 62;
   /** RegularExpression Id. */
-  int COORD1 = 63;
+  int AREA = 63;
   /** RegularExpression Id. */
-  int COORD2 = 64;
+  int COORD1 = 64;
   /** RegularExpression Id. */
-  int COORDSYS = 65;
+  int COORD2 = 65;
   /** RegularExpression Id. */
-  int DISTANCE = 66;
+  int COORDSYS = 66;
   /** RegularExpression Id. */
-  int ABS = 67;
+  int DISTANCE = 67;
   /** RegularExpression Id. */
-  int CEILING = 68;
+  int ABS = 68;
   /** RegularExpression Id. */
-  int DEGREES = 69;
+  int CEILING = 69;
   /** RegularExpression Id. */
-  int EXP = 70;
+  int DEGREES = 70;
   /** RegularExpression Id. */
-  int FLOOR = 71;
+  int EXP = 71;
   /** RegularExpression Id. */
-  int LOG = 72;
+  int FLOOR = 72;
   /** RegularExpression Id. */
-  int LOG10 = 73;
+  int LOG = 73;
   /** RegularExpression Id. */
-  int MOD = 74;
+  int LOG10 = 74;
   /** RegularExpression Id. */
-  int PI = 75;
+  int MOD = 75;
   /** RegularExpression Id. */
-  int POWER = 76;
+  int PI = 76;
   /** RegularExpression Id. */
-  int RADIANS = 77;
+  int POWER = 77;
   /** RegularExpression Id. */
-  int RAND = 78;
+  int RADIANS = 78;
   /** RegularExpression Id. */
-  int ROUND = 79;
+  int RAND = 79;
   /** RegularExpression Id. */
-  int SQRT = 80;
+  int ROUND = 80;
   /** RegularExpression Id. */
-  int TRUNCATE = 81;
+  int SQRT = 81;
   /** RegularExpression Id. */
-  int ACOS = 82;
+  int TRUNCATE = 82;
   /** RegularExpression Id. */
-  int ASIN = 83;
+  int ACOS = 83;
   /** RegularExpression Id. */
-  int ATAN = 84;
+  int ASIN = 84;
   /** RegularExpression Id. */
-  int ATAN2 = 85;
+  int ATAN = 85;
   /** RegularExpression Id. */
-  int COS = 86;
+  int ATAN2 = 86;
   /** RegularExpression Id. */
-  int COT = 87;
+  int COS = 87;
   /** RegularExpression Id. */
-  int SIN = 88;
+  int COT = 88;
   /** RegularExpression Id. */
-  int TAN = 89;
+  int SIN = 89;
   /** RegularExpression Id. */
-  int STRING_LITERAL = 93;
+  int TAN = 90;
   /** RegularExpression Id. */
-  int SCIENTIFIC_NUMBER = 94;
+  int STRING_LITERAL = 94;
   /** RegularExpression Id. */
-  int UNSIGNED_FLOAT = 95;
+  int SCIENTIFIC_NUMBER = 95;
   /** RegularExpression Id. */
-  int UNSIGNED_INTEGER = 96;
+  int UNSIGNED_FLOAT = 96;
   /** RegularExpression Id. */
-  int DIGIT = 97;
+  int UNSIGNED_INTEGER = 97;
   /** RegularExpression Id. */
-  int DELIMITED_IDENTIFIER = 100;
+  int DIGIT = 98;
   /** RegularExpression Id. */
-  int REGULAR_IDENTIFIER_CANDIDATE = 101;
+  int DELIMITED_IDENTIFIER = 101;
   /** RegularExpression Id. */
-  int Letter = 102;
+  int REGULAR_IDENTIFIER_CANDIDATE = 102;
+  /** RegularExpression Id. */
+  int Letter = 103;
 
   /** Lexical state. */
   int DEFAULT = 0;
@@ -266,6 +268,7 @@ public interface ADQLParserConstants {
     "\"MIN\"",
     "\"SUM\"",
     "\"COUNT\"",
+    "\"COALESCE\"",
     "\"BOX\"",
     "\"CENTROID\"",
     "\"CIRCLE\"",
@@ -302,16 +305,16 @@ public interface ADQLParserConstants {
     "\"COT\"",
     "\"SIN\"",
     "\"TAN\"",
-    "<token of kind 90>",
+    "<token of kind 91>",
     "\"\\\'\"",
-    "<token of kind 92>",
+    "<token of kind 93>",
     "\"\\\'\"",
     "<SCIENTIFIC_NUMBER>",
     "<UNSIGNED_FLOAT>",
     "<UNSIGNED_INTEGER>",
     "<DIGIT>",
     "\"\\\"\"",
-    "<token of kind 99>",
+    "<token of kind 100>",
     "\"\\\"\"",
     "<REGULAR_IDENTIFIER_CANDIDATE>",
     "<Letter>",
