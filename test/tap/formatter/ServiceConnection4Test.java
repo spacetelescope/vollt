@@ -1,5 +1,6 @@
 package tap.formatter;
 
+import java.net.URL;
 import java.util.Collection;
 import java.util.Iterator;
 
@@ -156,6 +157,12 @@ public class ServiceConnection4Test implements ServiceConnection {
 	@Override
 	public boolean fixOnFailEnabled(){
 		return false;
+	}
+
+	@Override
+	public URL getBaseUrl() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 }
