@@ -16,7 +16,7 @@ package adql.parser;
  * You should have received a copy of the GNU Lesser General Public License
  * along with ADQLLibrary.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * Copyright 2012-2017 - UDS/Centre de Données astronomiques de Strasbourg (CDS),
+ * Copyright 2012-2021 - UDS/Centre de Données astronomiques de Strasbourg (CDS),
  *                       Astronomisches Rechen Institut (ARI)
  */
 
@@ -56,12 +56,7 @@ import adql.query.operand.Operation;
 import adql.query.operand.OperationType;
 import adql.query.operand.StringConstant;
 import adql.query.operand.WrappedOperand;
-import adql.query.operand.function.DefaultUDF;
-import adql.query.operand.function.MathFunction;
-import adql.query.operand.function.MathFunctionType;
-import adql.query.operand.function.SQLFunction;
-import adql.query.operand.function.SQLFunctionType;
-import adql.query.operand.function.UserDefinedFunction;
+import adql.query.operand.function.*;
 import adql.query.operand.function.geometry.AreaFunction;
 import adql.query.operand.function.geometry.BoxFunction;
 import adql.query.operand.function.geometry.CentroidFunction;
@@ -83,7 +78,7 @@ import adql.query.operand.function.geometry.RegionFunction;
  * <p>To customize the object representation you merely have to extends the appropriate functions of this class.</p>
  * 
  * @author Gr&eacute;gory Mantelet (CDS;ARI)
- * @version 1.4 (04/2017)
+ * @version 1.5 (12/2021)
  * 
  * @see ADQLParser
  */
@@ -259,6 +254,11 @@ public class ADQLQueryFactory {
 
 	public In createIn(ADQLOperand leftOp, ADQLOperand[] valuesList, boolean notIn) throws Exception{
 		return new In(leftOp, valuesList, notIn);
+	}
+
+	/** @since 1.5 */
+	public CoalesceFunction createCoalesce(final Collection<ADQLOperand> operands) throws Exception {
+		return new CoalesceFunction(operands);
 	}
 
 	public SQLFunction createSQLFunction(SQLFunctionType type, ADQLOperand op, boolean distinctValues) throws Exception{
