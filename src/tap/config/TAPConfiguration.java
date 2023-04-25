@@ -402,6 +402,11 @@ public final class TAPConfiguration {
 	/** Value of {@value #KEY_COORD_SYS} and {@value #KEY_GEOMETRIES} that
 	 * forbid all possible values. */
 	public final static String VALUE_NONE = "NONE";
+	/** Name/Key of the property specifying whether the parameter of REGION(...)
+	 * is strict (i.e. only a string literal) or not. By default, it is strict
+	 * (so this property is <code>false</code>).
+	 * @since 2.4 */
+	public final static String KEY_EXTENDED_REGION_EXPRESSION = "extendedRegionExpression";
 	/** Name/Key of the property that lets declare all User Defined Functions
 	 * that must be allowed in ADQL queries. By default, all unknown functions
 	 * are rejected. This default behavior can be totally reversed by using the
@@ -474,6 +479,44 @@ public final class TAPConfiguration {
 	 */
 	public final static boolean isClassName(final String value) {
 		return (value != null && value.length() > 2 && value.charAt(0) == '{' && value.charAt(value.length() - 1) == '}');
+	}
+
+	/**
+	 * Fetch the class object corresponding to the class name provided between
+	 * brackets in the given value.
+	 *
+	 * @param value			Value which is supposed to contain the class name
+	 *             			between brackets (see {@link #isClassName(String)}
+	 *             			for more details)
+	 * @param expectedType	Type of the class expected to be returned ; it is
+	 *                    	also the type which parameterizes this function: C.
+	 *
+	 * @return	<code>true</code> if the specified class extends the given class,
+	 *        	<code>false</code> otherwise (including if not a class name or
+	 *        	an empty class name or if the specified class can not be found).
+	 *
+	 * @see #isClassName(String)
+	 *
+	 * @since 2.0
+	 */
+	public final static boolean isClassFor(final String value, final Class<?> expectedType) {
+		// Not a class name => false
+		if (!isClassName(value))
+			return false;
+
+		// Empty class name => false
+		String classPath = value.substring(1, value.length() - 1).trim();
+		if (classPath.isEmpty())
+			return false;
+
+		try {
+			// Assignable to the given class => true
+			return expectedType.isAssignableFrom(Class.forName(classPath));
+
+		} catch(Exception ex) {
+			// Unknown class path => false
+			return false;
+		}
 	}
 
 	/**

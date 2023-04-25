@@ -1,0 +1,2062 @@
+/*
+ * This file is part of ADQLLibrary.
+ * 
+ * ADQLLibrary is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * ADQLLibrary is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with ADQLLibrary.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ * Copyright 2020-2023 - UDS/Centre de Données astronomiques de Strasbourg (CDS)
+ */
+
+/*
+* This JavaCC file implements the BNF definition of ADQL v2.1
+* (IVOA Proposed Recommendation 12 January 2018 -
+*  http://www.ivoa.net/documents/ADQL/20180112/index.html).
+* 
+* To generate the parser with this file use JavaCC. This .jj file has been
+* successfully tested with JavaCC 7.0.9.
+* 
+* The generated parser checks the syntax of the given ADQL query and generates
+* an object representation but no consistency with any database is checked.
+* If the syntax is not conform to the ADQL definition a TokenMgrError or a
+* ParseException is thrown.
+*
+* Author:  Gr&eacute;gory Mantelet (CDS)
+* Version: 2.0 (03/2023)
+*/
+
+							/* ########### */
+							/* # OPTIONS # */
+							/* ########### */
+options {
+	STATIC = false;
+	IGNORE_CASE = true;
+	DEBUG_PARSER = true;
+	KEEP_LINE_COLUMN = true;
+	COMMON_TOKEN_ACTION = true;
+}
+
+							/* ########## */
+							/* # PARSER # */
+							/* ########## */
+
+PARSER_BEGIN(ADQLGrammar201)
+
+package adql.parser.grammar;
+
+/*
+ * This file is part of ADQLLibrary.
+ * 
+ * ADQLLibrary is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * ADQLLibrary is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with ADQLLibrary.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ * Copyright 2020-2023 - UDS/Centre de Données astronomiques de Strasbourg (CDS)
+ */
+
+import java.util.Vector;
+import java.util.ArrayList;
+
+import adql.parser.ADQLParser.ADQLVersion;
+
+import adql.parser.IdentifierItems;
+import adql.parser.IdentifierItems.IdentifierItem;
+
+import adql.parser.ADQLQueryFactory.JoinType;
+
+import adql.db.DBType.DBDatatype;
+
+import adql.query.*;
+import adql.query.from.*;
+import adql.query.constraint.*;
+
+import adql.query.operand.*;
+
+import adql.query.operand.function.*;
+
+import adql.query.operand.function.cast.*;
+
+import adql.query.operand.function.conditional.*;
+
+import adql.query.operand.function.string.*;
+
+import adql.query.operand.function.geometry.*;
+import adql.query.operand.function.geometry.GeometryFunction.GeometryValue;
+
+/**
+ * Parser of ADQL expressions following the ADQL-2.1 grammar.
+ *
+ * <p><i><b>Note:</b>
+ * 	It is strongly recommended to not use this class directly in order to parse
+ * 	an ADQL expression. Instead, you should use
+ * 	{@link adql.parser.ADQLParser ADQLParser}. It provides a more user-friendly
+ * 	interface and provides additional features.
+ * </i></p>
+ *
+ * @see adql.parser.ADQLParser
+ *
+ * @author Gr&eacute;gory Mantelet (CDS)
+ * @version 2.0 (03/2023)
+ * @since 2.0
+ */
+
+public class ADQLGrammar201 extends ADQLGrammarBase {
+
+	/* **********************************************************************
+	   *                         GETTERS/SETTERS                            *
+	   ********************************************************************** */
+	
+	/** Implemented version of the ADQL Standard. */
+  	public final static ADQLVersion VERSION = ADQLVersion.V2_1;
+
+	public final ADQLVersion getVersion() {
+		return VERSION;
+	}
+
+	/* **********************************************************************
+	   *                         TOKEN KIND TESTS                           *
+	   ********************************************************************** */
+
+	public final boolean isEOF(final Token token) {
+		return token != null && token.kind == ADQLGrammar201Constants.EOF;
+	}
+
+	public final boolean isEOQ(final Token token) {
+		return token != null && token.kind == ADQLGrammar201Constants.EOQ;
+	}
+
+	public final boolean isRegularIdentifierCandidate(final Token token) {
+		return token != null && token.kind == ADQLGrammar201Constants.REGULAR_IDENTIFIER_CANDIDATE;
+	}
+
+	public final boolean isSQLReservedWord(final Token token) {
+		return token != null && token.kind == ADQLGrammar201Constants.SQL_RESERVED_WORD;
+	}
+
+	public final boolean isLeftPar(final Token token) {
+		return token != null && token.kind == ADQLGrammar201Constants.LEFT_PAR;
+	}
+
+	/* **********************************************************************
+	   *                        TOKENIZATION HELPER                         *
+	   ********************************************************************** */
+
+	public final Tokenizer getTokenizer(final String expr) throws NullPointerException {
+		// Error if no expression to tokenize:
+	  	if (expr == null)
+	  		throw new NullPointerException("Missing ADQL expression to tokenize!");
+
+	  	// Return a Tokenizer: instance
+		return new Tokenizer() {
+		  	private final ADQLGrammar201TokenManager tokenManager = new ADQLGrammar201TokenManager(new SimpleCharStream(new java.io.ByteArrayInputStream(expr.getBytes())));
+		  	private boolean eof = false;
+			@Override
+			public Token nextToken() {
+				if (eof)
+					return null;
+				else {
+					Token tok = tokenManager.getNextToken();
+					eof = (tok.kind == ADQLGrammar201Constants.EOF);
+					return tok;
+				}
+			}
+		};
+	}
+}
+
+PARSER_END(ADQLGrammar201)
+
+				/* ################################### */
+				/* # CUSTOMIZATION OF TOKEN CREATION # */
+				/* ################################### */
+
+TOKEN_MGR_DECLS: {
+	protected void CommonTokenAction(final Token t) {
+		t.adqlVersion = ADQLGrammar201.VERSION;
+	} 
+}
+
+
+							/* ########### */
+							/* # GRAMMAR # */
+							/* ########### */
+/* ******************** */
+/* Characters to ignore */
+/* ******************** */
+SKIP : { < " " | "\t" | "\n" | "\r" | "\r\n" > }
+
+/* ************************************************************************** */
+/* Reserved SQL words                                                         */
+/*                                                                            */
+/* NOTE:                                                                      */
+/*   This list is the one provided by the ADQL-2.1 standard after removal of  */
+/*   all ADQL used words (e.g. SELECT, AS, LIKE, AVG, ABS, COS, POINT).       */
+/*   (see ParseException.initialise(Token, int[][], String[]) for more        */
+/*   details)                                                                 */
+/* ************************************************************************** */
+
+TOKEN : {
+	< SQL_RESERVED_WORD: ("ABSOLUTE"|"ACTION"|"ADD"|"ALLOCATE"|"ALTER"|"ANY"|"ARE"|"ASSERTION"|"AT"|"AUTHORIZATION"|"BEGIN"|"BIT"|"BIT_LENGTH"|"BOTH"|"CASCADE"|"CASCADED"|"CASE"|"CATALOG"|"CHARACTER"|"CHAR_LENGTH"|"CHARACTER_LENGTH"|"CHECK"|"CLOSE"|"COLLATE"|"COLLATION"|"COLUMN"|"COMMIT"|"CONNECT"|"CONNECTION"|"CONSTRAINT"|"CONSTRAINTS"|"CONTINUE"|"CONVERT"|"CORRESPONDING"|"CREATE"|"CURRENT"|"CURRENT_DATE"|"CURRENT_TIME"|"CURRENT_TIMESTAMP"|"CURRENT_USER"|"CURSOR"|"DATE"|"DAY"|"DEALLOCATE"|"DECIMAL"|"DECLARE"|"DEFAULT"|"DEFERRABLE"|"DEFERRED"|"DELETE"|"DESCRIBE"|"DESCRIPTOR"|"DIAGNOSTICS"|"DISCONNECT"|"DOMAIN"|"DROP"|"ELSE"|"END"|"END-EXEC"|"ESCAPE"|"EXCEPTION"|"EXEC"|"EXECUTE"|"EXTERNAL"|"EXTRACT"|"FALSE"|"FETCH"|"FIRST"|"FLOAT"|"FOR"|"FOREIGN"|"FOUND"|"GET"|"GLOBAL"|"GO"|"GOTO"|"GRANT"|"HOUR"|"IDENTITY"|"IMMEDIATE"|"INDICATOR"|"INITIALLY"|"INPUT"|"INSENSITIVE"|"INSERT"|"INT"|"INTERVAL"|"INTO"|"ISOLATION"|"KEY"|"LANGUAGE"|"LAST"|"LEADING"|"LEVEL"|"LOCAL"|"MATCH"|"MINUTE"|"MODULE"|"MONTH"|"NAMES"|"NATIONAL"|"NCHAR"|"NEXT"|"NO"|"NULLIF"|"NUMERIC"|"OCTET_LENGTH"|"OF"|"ONLY"|"OPEN"|"OPTION"|"OUTPUT"|"OVERLAPS"|"PAD"|"PARTIAL"|"POSITION"|"PREPARE"|"PRESERVE"|"PRIMARY"|"PRIOR"|"PRIVILEGES"|"PROCEDURE"|"PUBLIC"|"READ"|"REFERENCES"|"RELATIVE"|"RESTRICT"|"REVOKE"|"ROLLBACK"|"ROWS"|"SCHEMA"|"SCROLL"|"SECOND"|"SECTION"|"SESSION"|"SESSION_USER"|"SET"|"SIZE"|"SOME"|"SPACE"|"SQL"|"SQLCODE"|"SQLERROR"|"SQLSTATE"|"SUBSTRING"|"SYSTEM_USER"|"TABLE"|"TEMPORARY"|"THEN"|"TIME"|"TIMEZONE_HOUR"|"TIMEZONE_MINUTE"|"TO"|"TRAILING"|"TRANSACTION"|"TRANSLATE"|"TRANSLATION"|"TRIM"|"TRUE"|"UNIQUE"|"UNKNOWN"|"UPDATE"|"USAGE"|"USER"|"VALUE"|"VALUES"|"VARYING"|"VIEW"|"WHEN"|"WHENEVER"|"WORK"|"WRITE"|"YEAR"|"ZONE") >
+	{ matchedToken.sqlReserved = true; }
+}
+
+/* *********** */
+/* Punctuation */
+/* *********** */
+TOKEN : {
+	< LEFT_PAR: "(" >
+|	< RIGHT_PAR: ")" > 
+|	< DOT: "." >
+|	< COMMA: "," >
+|	< EOQ: ";">
+|	< CONCAT: "||" >
+}
+
+/* ************* */
+/* Set operators */
+/* ************* */
+TOKEN : {
+	< UNION: "UNION" >
+|	< INTERSECT: "INTERSECT" >
+|	< EXCEPT: "EXCEPT" >
+}
+
+/* ******************** */
+/* Arithmetic operators */
+/* ******************** */
+TOKEN : {
+	< PLUS: "+" >
+|	< MINUS: "-" >
+|	< ASTERISK: "*" >
+|	< DIVIDE: "/" >
+}
+
+/* ******************** */
+/* Comparison operators */
+/* ******************** */
+TOKEN : {
+	< EQUAL: "=" >
+|	< NOT_EQUAL: "<>" | "!=" >
+|	< LESS_THAN: "<" >
+|	< LESS_EQUAL_THAN: "<=" >
+|	< GREATER_THAN: ">" >
+|	< GREATER_EQUAL_THAN: ">=" >
+}
+
+/* *************** */
+/* SELECT's tokens */
+/* *************** */
+TOKEN : {
+	< SELECT: "SELECT" >               { matchedToken.adqlReserved = true; }
+|	< QUANTIFIER: "DISTINCT" | "ALL" > { matchedToken.adqlReserved = true; }
+|	< TOP: "TOP" >                     { matchedToken.adqlReserved = true; }
+}
+
+/* ************* */
+/* FROM's tokens */
+/* ************* */
+TOKEN : {
+	< FROM: "FROM" >       { matchedToken.adqlReserved = true; }
+|	< AS: "AS" >           { matchedToken.adqlReserved = true; }
+|	< NATURAL: "NATURAL" > { matchedToken.adqlReserved = true; }
+|	< INNER: "INNER" >     { matchedToken.adqlReserved = true; }
+|	< OUTER: "OUTER" >     { matchedToken.adqlReserved = true; }
+|	< RIGHT: "RIGHT" >     { matchedToken.adqlReserved = true; }
+|	< LEFT: "LEFT" >       { matchedToken.adqlReserved = true; }
+|	< FULL: "FULL" >       { matchedToken.adqlReserved = true; }
+|	< JOIN: "JOIN" >       { matchedToken.adqlReserved = true; }
+|	< ON: "ON" >           { matchedToken.adqlReserved = true; }
+}
+TOKEN : { 
+	< USING: "USING" > { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+}
+
+/* ************** */
+/* WHERE's tokens */
+/* ************** */
+TOKEN : {
+	< WHERE: "WHERE" >     { matchedToken.adqlReserved = true; }
+|	< AND: "AND" >         { matchedToken.adqlReserved = true; }
+|	< OR: "OR" >           { matchedToken.adqlReserved = true; }
+|	< NOT: "NOT" >         { matchedToken.adqlReserved = true; }
+|	< IS: "IS" >           { matchedToken.adqlReserved = true; }
+|	< NULL: "NULL" >       { matchedToken.adqlReserved = true; }
+|	< BETWEEN: "BETWEEN" > { matchedToken.adqlReserved = true; }
+|	< LIKE: "LIKE" >       { matchedToken.adqlReserved = true; }
+|	< ILIKE: "ILIKE" >     { matchedToken.adqlReserved = true; }
+}
+TOKEN : { 
+	< IN: "IN" >         { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< EXISTS: "EXISTS" > { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+}
+
+/* ********************* */
+/* Other clauses' tokens */
+/* ********************* */
+TOKEN : {
+	< WITH: "WITH" >     { matchedToken.adqlReserved = true; }
+|	< BY: "BY" >         { matchedToken.adqlReserved = true; }
+|	< GROUP: "GROUP" >   { matchedToken.adqlReserved = true; }
+|	< HAVING: "HAVING" > { matchedToken.adqlReserved = true; }
+|	< ORDER: "ORDER" >   { matchedToken.adqlReserved = true; }
+|	< ASC: "ASC" >       { matchedToken.adqlReserved = true; }
+|	< DESC: "DESC" >     { matchedToken.adqlReserved = true; }
+|   < OFFSET: "OFFSET" > { matchedToken.adqlReserved = true; }
+}
+
+/* ************* */
+/* SQL functions */
+/* ************* */
+TOKEN : {
+	< AVG: "AVG" >     { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< MAX: "MAX" >     { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< MIN: "MIN" >     { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< SUM: "SUM" >     { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< COUNT: "COUNT" > { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+}
+
+/* ************** */
+/* ADQL functions */
+/* ************** */
+TOKEN : {
+	< BOX: "BOX" >               { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< CENTROID: "CENTROID" >     { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< CIRCLE: "CIRCLE" >         { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< POINT: "POINT" >           { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< POLYGON: "POLYGON" >       { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< REGION: "REGION" >         { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+
+|	< CONTAINS: "CONTAINS" >     { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< INTERSECTS: "INTERSECTS" > { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< AREA: "AREA" >             { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< COORD1: "COORD1" >         { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< COORD2: "COORD2" >         { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< COORDSYS: "COORDSYS" >     { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< DISTANCE: "DISTANCE" >     { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+}
+
+/* ************ */
+/* Type casting */
+/* ************ */
+TOKEN : {
+	< CAST: "CAST" >           { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< VARIABLE_LENGTH_DATATYPE: (  "CHAR"
+                                 | "VARCHAR") >         { matchedToken.adqlReserved = true; }
+|	< NO_LENGTH_DATATYPE      : (  "INTEGER"
+                                 | "SMALLINT"
+                                 | "BIGINT"
+                                 | "REAL"
+                                 | "DOUBLE" (" "|"\n"|"\r"|"\t")+ "PRECISION"
+                                 | "TIMESTAMP") >       { matchedToken.adqlReserved = true; }
+}
+
+/* ********************** */
+/* String functions */
+/* ********************** */
+TOKEN : {
+	< LOWER: "LOWER" > { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+| 	< UPPER: "UPPER" > { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+}
+
+/* ********************** */
+/* Mathematical functions */
+/* ********************** */
+TOKEN : {
+	< ABS: "ABS" >           { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< CEILING: "CEILING" >   { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< DEGREES: "DEGREES" >   { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< EXP: "EXP" >           { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< FLOOR: "FLOOR" >       { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< LOG: "LOG" >           { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< LOG10: "LOG10" >       { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< MOD: "MOD" >           { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< PI: "PI" >             { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< POWER: "POWER" >       { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< RADIANS: "RADIANS" >   { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< RAND: "RAND" >         { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< ROUND: "ROUND" >       { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< SQRT: "SQRT" >         { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< TRUNCATE: "TRUNCATE" > { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+}
+
+/* ************************* */
+/* Trigonometrical functions */
+/* ************************* */
+TOKEN : {
+	< ACOS: "ACOS" >   { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< ASIN: "ASIN" >   { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< ATAN: "ATAN" >   { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< ATAN2: "ATAN2" > { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< COS: "COS" >     { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< COT: "COT" >     { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< SIN: "SIN" >     { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+|	< TAN: "TAN" >     { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+}
+
+/* ******************** */
+/* Conversion functions */
+/* ******************** */
+TOKEN : {
+	< IN_UNIT: "IN_UNIT" >   { matchedToken.adqlReserved = matchedToken.isFunctionName = true; }
+}
+
+/* ********************* */
+/* Conditional functions */
+/* ********************* */
+TOKEN : {
+   < COALESCE: "COALESCE" >
+}
+
+
+/* ******* */
+/* Comment */
+/* ******* */
+SKIP : { < <MINUS><MINUS> (~["\n","\r"])* ("\n"|"\r"|"\r\n")? > }
+
+/* ****** */
+/* String */
+/* ****** */
+<DEFAULT> MORE : { "'" : WithinString }
+<WithinString> MORE : { < ~["'"] | ("''") > }
+<WithinString> TOKEN : { < STRING_LITERAL: "'" >: DEFAULT }
+
+/* *************** */
+/* Primary numbers */
+/* *************** */
+TOKEN : {
+	< SCIENTIFIC_NUMBER: (<UNSIGNED_FLOAT>|<UNSIGNED_INTEGER>) "E" (<PLUS>|<MINUS>)? <UNSIGNED_INTEGER> >
+|	< UNSIGNED_FLOAT: (<UNSIGNED_INTEGER> <DOT> (<UNSIGNED_INTEGER>)?) | (<DOT> <UNSIGNED_INTEGER>) >
+|	< UNSIGNED_INTEGER: (<DIGIT>)+ >
+|	< #DIGIT: ["0"-"9"] >
+}
+
+/* ************************************************* */
+/* Identifier (column, tables, ...) */
+/* ************************************************* */
+<DEFAULT> MORE : { "\"" : WithinDelimitedId }
+<WithinDelimitedId> MORE : { < ~["\""] | ("\"\"") > }
+<WithinDelimitedId> TOKEN : { < DELIMITED_IDENTIFIER: "\"" >: DEFAULT }
+
+TOKEN : {
+	< REGULAR_IDENTIFIER_CANDIDATE: ((<Letter>)+ (<DIGIT> | <Letter>)* | (<DIGIT>)+ <Letter> (<DIGIT> | <Letter>)*) >
+|	< #Letter: ["a"-"z","A"-"Z","_","?","$","@","#","`","[","]","{","}"] >
+}
+
+							/* ########## */
+							/* # SYNTAX # */
+							/* ########## */
+							
+/* ******************* */
+/* GENERAL ADQL SYNTAX */
+/* ******************* */
+
+ADQLSet Query(): {ADQLSet q = null; ClauseADQL<WithItem> with=null;}{
+	[with=With()]
+	q=QueryExpression() (<EOF> | <EOQ>)
+
+	{
+		// Adjust the query position, if any WITH is provided:
+	  	if (with != null){
+	  	  	// remember the position of the query without WITH:
+	  	  	TextPosition setPosition = q.getPosition();
+			// set the WITH clause:
+	  		q.setWith(with);
+			// set the position of the whole query:
+			q.setPosition(new TextPosition(with.getPosition(), setPosition));
+		}
+
+		return q;
+	}
+}
+
+ADQLSet QueryExpression(): {TextPosition endPos = null; ADQLSet set; TextPosition initPos; ClauseADQL<ADQLOrder> orderBy; ClauseOffset offset;} {
+	set=SetExpression() {initPos = set.getPosition(); endPos = set.getPosition();}
+	[orderBy=OrderBy()  {set.setOrderBy(orderBy); endPos = orderBy.getPosition();}]
+	[offset=Offset()    {set.setOffset(offset);   endPos = offset.getPosition();}]
+	{
+		set.setPosition(new TextPosition(initPos, endPos));
+		return set;
+	}
+}
+
+ADQLSet SetExpression(): {ADQLSet set1=null, set2=null; Token setOp=null, quantifier=null;} {
+	set1=SetTerm()
+	(
+	  (setOp=<UNION>|setOp=<EXCEPT>) [quantifier=<QUANTIFIER>] set2=SetTerm()
+	  {
+	    try {
+		  	SetOperation set = queryFactory.createSetOperation(VERSION, set1, SetOperationType.valueOf(setOp.image.toUpperCase()), set2);
+		  	set.setWithDuplicates(quantifier != null && quantifier.image.equalsIgnoreCase("ALL"));
+		  	set1 = set;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	  }
+	)*
+	{return set1;}
+}
+
+ADQLSet SetTerm(): {ADQLSet set1=null, set2=null; Token quantifier=null;} {
+	set1=SetFactor()
+	(
+	  <INTERSECT> [quantifier=<QUANTIFIER>] set2=SetFactor()
+	  {
+	    try {
+			SetOperation set = queryFactory.createSetOperation(VERSION, set1, SetOperationType.INTERSECT, set2);
+			set.setWithDuplicates(quantifier != null && quantifier.image.equalsIgnoreCase("ALL"));
+			set1 = set;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	  }
+	)*
+	{return set1;}
+}
+
+ADQLSet SetFactor(): {ADQLSet set = null; Token start, end;} {
+	(
+		set=SimpleQueryExpression()
+	|
+		set=SubQueryExpression()
+	)
+	{return set;}
+}
+
+ADQLQuery SimpleQueryExpression(): {TextPosition endPos = null; ClauseSelect select=null; FromContent from; ClauseConstraints where, having; ClauseADQL<ADQLOperand> groupBy;} {
+	{
+		try{
+			// create the query:
+			query = queryFactory.createQuery(VERSION);
+			stackQuery.push(query);
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+	select=Select()    {query.setSelect(select);}
+	from=From()        {query.setFrom(from);       endPos = from.getPosition();}
+	[where=Where()     {query.setWhere(where);     endPos = where.getPosition();}]
+	[groupBy=GroupBy() {query.setGroupBy(groupBy); endPos = groupBy.getPosition();}]
+	[having=Having()   {query.setHaving(having);   endPos = having.getPosition();}]
+	{
+		// set the position of the query:
+		query.setPosition(new TextPosition(select.getPosition(), endPos));
+		
+		// get the previous query (!= null if the current query is a sub-query):
+		ADQLQuery previousQuery = stackQuery.pop();
+		if (stackQuery.isEmpty())
+			query = null;
+		else
+			query = stackQuery.peek();
+			
+		return previousQuery;
+	}
+}
+
+ADQLSet SubQueryExpression(): {ADQLSet q = null; Token start, end;} {
+	start=<LEFT_PAR> q=QueryExpression() end=<RIGHT_PAR>
+	{
+		q.setPosition(new TextPosition(start, end));
+		return q;
+	}
+}
+
+ClauseADQL<WithItem> With(): { ClauseADQL<WithItem> withClause = new ClauseADQL<WithItem>("WITH"); WithItem withItem; Token start,end; IdentifierItem id, colId; ADQLSet query; } {
+	try {
+		start=<WITH> id=Identifier() <AS> <LEFT_PAR> query=QueryExpression() end=<RIGHT_PAR>
+		{
+			withItem = queryFactory.createWithItem(id, query);
+			withItem.setPosition(new TextPosition(id.position, new TextPosition(end)));
+			withClause.add(withItem);
+		}
+		(
+			<COMMA> id=Identifier() <AS> <LEFT_PAR> query=QueryExpression() end=<RIGHT_PAR>
+			{
+				withItem = queryFactory.createWithItem(id, query);
+				withItem.setPosition(new TextPosition(id.position, new TextPosition(end)));
+				withClause.add(withItem);
+			}
+		)*
+		{
+		  withClause.setPosition(new TextPosition(start, end));
+		  return withClause;
+		}
+	}catch(Exception ex) {
+		throw generateParseException(ex);
+	}
+}
+
+ClauseSelect Select(): {ClauseSelect select = new ClauseSelect(); SelectItem item=null; Token start,t = null;} {
+	start=<SELECT>
+	[t=<QUANTIFIER> {select.setDistinctColumns(t.image.equalsIgnoreCase("DISTINCT"));}]
+	[<TOP> t=<UNSIGNED_INTEGER>
+	 {
+	  try{
+	  	select.setLimit(Integer.parseInt(t.image));
+	  }catch(NumberFormatException nfe){
+	  	throw new ParseException("[l."+t.beginLine+";c."+t.beginColumn+"] The TOP limit (\""+t.image+"\") isn't a regular unsigned integer !");
+	  }
+	 }
+	]
+	
+	item=SelectItem() {select.add(item);}
+	(<COMMA> item=SelectItem() {select.add(item);})*
+	{
+		TextPosition lastItemPos = select.get(select.size()-1).getPosition();
+		select.setPosition(new TextPosition(start.beginLine, start.beginColumn, lastItemPos.endLine, lastItemPos.endColumn));
+		return select;
+	}
+}
+
+SelectItem SelectItem(): {IdentifierItems identifiers = new IdentifierItems(true); IdentifierItem firstID = null, id = null, label = null; ADQLOperand op = null; SelectItem item; Token starToken;} {
+	(
+		( starToken=<ASTERISK>
+		  {
+		    item = new SelectAllColumns(query);
+		    item.setPosition(new TextPosition(starToken));
+		    return item;
+		  }
+		)
+	|LOOKAHEAD(7)
+		(
+			id=Identifier() <DOT> { identifiers.append(id); firstID = id; }
+			(
+				id=Identifier() <DOT> { identifiers.append(id); }
+				(
+					id=Identifier() <DOT> { identifiers.append(id); }
+				)?
+			)?
+			starToken=<ASTERISK>
+			{
+				try{
+					ADQLTable table = queryFactory.createTable(identifiers, null);
+					table.setPosition(new TextPosition(firstID.position, id.position));
+					
+					item = new SelectAllColumns(table);
+					item.setPosition(new TextPosition(firstID.position, new TextPosition(starToken)));
+					return item;
+				}catch(Exception ex) {
+					throw generateParseException(ex);
+				}
+			}
+		)
+		
+	| 
+		(op=ValueExpression()[[<AS>] label=Identifier()])
+	)
+	
+	{
+		try{
+			item = queryFactory.createSelectItem(op, (label==null)?null:label.identifier);
+			if (label != null){
+				item.setCaseSensitive(label.caseSensitivity);
+				item.setPosition(new TextPosition(op.getPosition(), label.position));
+			}else
+				item.setPosition(new TextPosition(op.getPosition()));
+			return item;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+FromContent From():{FromContent content = null, content2 = null;}{
+	try{
+		<FROM> content=TableRef()
+		(<COMMA> content2=TableRef()
+		 {
+		   TextPosition startPos = content.getPosition(), endPos = content2.getPosition();
+		   content = queryFactory.createJoin(JoinType.CROSS, content, content2);
+		   content.setPosition(new TextPosition(startPos, endPos));
+		 }
+		)*
+		{ return content; }
+	}catch(Exception ex){
+		throw generateParseException(ex);
+	}
+}
+
+ClauseConstraints Where(): {ClauseConstraints where = new ClauseConstraints("WHERE"); ADQLConstraint condition; Token start;} {
+	start=<WHERE> ConditionsList(where)
+	{
+	  TextPosition endPosition = where.getPosition();
+	  where.setPosition(new TextPosition(start.beginLine, start.beginColumn, endPosition.endLine, endPosition.endColumn));
+	  return where;
+	}
+}
+
+ClauseADQL<ADQLOperand> GroupBy(): {ClauseADQL<ADQLOperand> groupBy = new ClauseADQL<ADQLOperand>("GROUP BY"); ADQLOperand item = null; Token start;} {
+	start=<GROUP> <BY> item=ValueExpression() { groupBy.add(item); }
+	( <COMMA> item=ValueExpression() { groupBy.add(item); } )*
+	{
+	  groupBy.setPosition(new TextPosition(new TextPosition(start), item.getPosition()));
+	  return groupBy;
+	}
+}
+
+ClauseConstraints Having(): {ClauseConstraints having = new ClauseConstraints("HAVING"); Token start;} {
+	start=<HAVING> ConditionsList(having)
+	{
+	  TextPosition endPosition = having.getPosition();
+	  having.setPosition(new TextPosition(start.beginLine, start.beginColumn, endPosition.endLine, endPosition.endColumn));
+	  return having;
+	}
+}
+
+ClauseADQL<ADQLOrder> OrderBy(): {ClauseADQL<ADQLOrder> orderBy = new ClauseADQL<ADQLOrder>("ORDER BY"); ADQLOrder order = null; Token start;} {
+	start=<ORDER> <BY> order=OrderItem() {orderBy.add(order);}
+	( <COMMA> order=OrderItem() {orderBy.add(order);} )*
+	{
+	  orderBy.setPosition(new TextPosition(start, token));
+	  return orderBy;
+	}
+}
+
+ClauseOffset Offset(): { Token start, t; } {
+	start=<OFFSET> t=<UNSIGNED_INTEGER>
+	{
+		try{
+		  	ClauseOffset offset = queryFactory.createOffset(Integer.parseInt(t.image));
+		  	offset.setPosition(new TextPosition(start, t));
+			return offset;
+		}catch(NumberFormatException nfe){
+			throw new ParseException("The OFFSET limit (\""+t.image+"\") isn't a regular unsigned integer!", new TextPosition(t));
+		}catch(Exception ex) {
+			throw generateParseException(ex);
+		}
+	}
+}
+
+/* *************************** */
+/* COLUMN AND TABLE REFERENCES */
+/* *************************** */
+IdentifierItem Identifier(): {Token t;} {
+	(
+		t=<REGULAR_IDENTIFIER_CANDIDATE>
+		{
+		  	testRegularIdentifier(t);
+			return new IdentifierItem(t, false);
+		}
+	|
+		t=<DELIMITED_IDENTIFIER>
+		{ return new IdentifierItem(t, true); }
+	)
+}
+
+/**
+ * Extracts the name of a table with its possible catalog and schema prefixes.
+ * 
+ * @return A {@link IdentifierItems} which contains at most three items: catalogName, schemaName and tableName.
+ */
+IdentifierItems TableName(): {IdentifierItems identifiers=new IdentifierItems(true); IdentifierItem id=null;} {
+	(
+		id=Identifier() {identifiers.append(id);}						// catalog
+		(LOOKAHEAD(1) <DOT> id=Identifier() {identifiers.append(id);})?	// schema
+		(LOOKAHEAD(1) <DOT> id=Identifier() {identifiers.append(id);})?	// table
+	)
+	{ return identifiers; }
+}
+
+/**
+ * Extracts the name of a column with its possible catalog, schema and table prefixes.
+ * 
+ * @return A {@link IdentifierItems} which contains at most four items: catalogName, schemaName, tableName and columnName.
+ */
+IdentifierItems ColumnName(): {IdentifierItem id; IdentifierItems table=null, identifiers=new IdentifierItems(false);} {
+	( id=Identifier() (LOOKAHEAD(1) <DOT> table=TableName())? )
+	{
+		identifiers.append(id);
+		if (table != null){
+			for(int i=0; i<table.size(); i++)
+				identifiers.append(table.get(i));
+		}
+		return identifiers;
+	}
+}
+
+ADQLColumn Column(): {IdentifierItems identifiers;} {
+	identifiers = ColumnName()
+	{
+		try{
+			return queryFactory.createColumn(identifiers);
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+ADQLOrder OrderItem(): {ADQLOperand expr = null; Token ind = null, desc = null;}{
+	expr=ValueExpression()
+	{
+		if (expr instanceof NumericConstant && token.kind == UNSIGNED_INTEGER)
+			ind = token;
+	}
+	(<ASC> | desc=<DESC>)?
+	{
+		try{
+			ADQLOrder order = null;
+			if (ind != null){
+				order = queryFactory.createOrder(Integer.parseInt(ind.image), desc!=null);
+				order.getColumnReference().setPosition(new TextPosition(ind));
+				if (desc == null)
+					order.setPosition(new TextPosition(ind));
+				else
+					order.setPosition(new TextPosition(ind, desc));
+			}else{
+				order = queryFactory.createOrder(expr, desc!=null);
+				if (desc == null)
+					order.setPosition(expr.getPosition());
+				else
+					order.setPosition(new TextPosition(expr.getPosition(), new TextPosition(desc)));
+			} 
+			return order;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+FromContent SimpleTableRef(): {IdentifierItem alias = null; IdentifierItems identifiers = null; ADQLSet subQuery = null; FromContent content = null; Token start,end;} {
+	try{
+		(
+			identifiers=TableName() [[<AS>] alias=Identifier()]
+			{
+			  content = queryFactory.createTable(identifiers, alias);
+			  if (alias == null)
+			  	content.setPosition(new TextPosition(identifiers.get(0).position, identifiers.get(identifiers.size()-1).position));
+			  else
+			  	content.setPosition(new TextPosition(identifiers.get(0).position, alias.position));
+			  return content;
+			}
+		|LOOKAHEAD(2)
+			subQuery=SubQueryExpression() [<AS>] alias=Identifier()
+			{
+			  content = queryFactory.createTable(subQuery, alias);
+			  if (alias == null)
+			  	content.setPosition(new TextPosition(subQuery.getPosition()));
+			  else
+			  	content.setPosition(new TextPosition(subQuery.getPosition(), alias.position));
+			  return content;
+			}
+		|
+			start=<LEFT_PAR> content=JoinedTable() end=<RIGHT_PAR>
+			{
+			  content.setPosition(new TextPosition(start, end));
+			  return content;
+			}
+		)
+	}catch(Exception ex){
+		throw generateParseException(ex);
+	}
+}
+
+FromContent TableRef(): { FromContent content; } {
+	content=SimpleTableRef()
+	( LOOKAHEAD(2) content=JoinSpecification(content) )*
+	{ return content; }
+}
+
+FromContent JoinedTable(): { FromContent content; } {
+	content=SimpleTableRef()
+	( content=JoinSpecification(content) )+
+	{ return content; }
+}
+
+
+ADQLJoin JoinSpecification(FromContent leftTable): { boolean natural = false; JoinType type = JoinType.INNER;  ClauseConstraints condition = new ClauseConstraints("ON"); ArrayList<ADQLColumn> lstColumns=new ArrayList<ADQLColumn>(); IdentifierItem id; FromContent rightTable; ADQLJoin join; Token lastPar;} {
+	try{
+		(
+			<NATURAL> {natural=true;} [<INNER> | ((<LEFT> {type = JoinType.OUTER_LEFT;}|<RIGHT> {type = JoinType.OUTER_RIGHT;}|<FULL> {type = JoinType.OUTER_FULL;}) [<OUTER>])] <JOIN> rightTable=SimpleTableRef()
+			{
+			  join = queryFactory.createJoin(type, leftTable, rightTable);
+			  join.setPosition(new TextPosition(leftTable.getPosition(), rightTable.getPosition()));
+			  return join;
+			}
+		|
+			[<INNER> | ((<LEFT> {type = JoinType.OUTER_LEFT;}|<RIGHT> {type = JoinType.OUTER_RIGHT;}|<FULL> {type = JoinType.OUTER_FULL;}) [<OUTER>])] <JOIN> rightTable=SimpleTableRef()
+			(
+				<ON> ConditionsList(condition)
+				{
+				  join = queryFactory.createJoin(type, leftTable, rightTable, condition);
+				  join.setPosition(new TextPosition(leftTable.getPosition(), condition.getPosition()));
+				  return join;
+				}
+			|
+				<USING> <LEFT_PAR> id=Identifier()
+						{ lstColumns.add( queryFactory.createColumn(id) ); }
+						(
+							<COMMA> id=Identifier()
+							{ lstColumns.add( queryFactory.createColumn(id) ); }
+						)* lastPar=<RIGHT_PAR>
+				{
+				  join = queryFactory.createJoin(type, leftTable, rightTable, lstColumns);
+				  join.setPosition(new TextPosition(leftTable.getPosition().beginLine, leftTable.getPosition().beginColumn, lastPar.endLine, (lastPar.endColumn < 0) ? -1 : (lastPar.endColumn + 1)));
+				  return join;
+				}
+			)
+		)
+	}catch(Exception ex){
+		throw generateParseException(ex);
+	}
+}
+
+/* ****** */
+/* STRING */
+/* ****** */
+StringConstant String(): {Token t, start=null; String str=""; StringConstant cst;} {
+	(t=<STRING_LITERAL>
+	 {
+	   	str += t.image.substring(1, t.image.length()-1).replaceAll("''", "'");
+	   	if (start == null)
+	   		start = t;
+	 }
+	)+
+	{
+		try{
+		  cst = queryFactory.createStringConstant(str);
+		  cst.setPosition(new TextPosition(start, t));
+		  return cst;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+/* ************* */
+/* NUMERIC TYPES */
+/* ************* */
+NumericConstant UnsignedNumeric(): {Token t; NumericConstant cst;} {
+	(t=<SCIENTIFIC_NUMBER>
+	| t=<UNSIGNED_FLOAT>
+	| t=<UNSIGNED_INTEGER>)
+	{
+		try{
+		  	cst = queryFactory.createNumericConstant(t.image);
+			cst.setPosition(new TextPosition(t));
+			return cst;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+NumericConstant UnsignedFloat(): {Token t; NumericConstant cst;} {
+	(t=<UNSIGNED_INTEGER>
+	| t=<UNSIGNED_FLOAT>)
+	{
+		try{
+			cst = queryFactory.createNumericConstant(t.image);
+		  	cst.setPosition(new TextPosition(t));
+			return cst;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+NumericConstant SignedInteger(): {Token sign=null, number; NumericConstant cst;} {
+	((sign=<PLUS>|sign=<MINUS>)? number=<UNSIGNED_INTEGER>)
+	{
+		try{
+		  	if (sign == null){		  		cst = queryFactory.createNumericConstant(number.image);
+		  		cst.setPosition(new TextPosition(number));
+		 	}else{		 		cst = queryFactory.createNumericConstant(sign.image+number.image);
+		  		cst.setPosition(new TextPosition(sign, number));
+		 	}
+		 	return cst;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+/* *********** */
+/* EXPRESSIONS */
+/* *********** */
+ADQLOperand NumericValueExpressionPrimary(): {ADQLColumn column; ADQLOperand op; Token left, right;} {
+	try{
+		(
+		// NULL
+		left=<NULL> { op = queryFactory.createNullValue(); ((NullValue)op).setPosition(new TextPosition(left)); return op; }
+		// unsigned_value_specification
+		| op=UnsignedNumeric() {return op;}
+		// column_reference
+		| column=Column() {column.setExpectedType('N'); return column;}
+		// set_function_specification
+		| op=SqlFunction() {return op;}
+		// LEFT_PAR value_expression RIGHT_PAR
+		| (left=<LEFT_PAR> op=NumericExpression() right=<RIGHT_PAR>) { WrappedOperand wop = queryFactory.createWrappedOperand(op); wop.setPosition(new TextPosition(left, right)); return wop; })
+	}catch(Exception ex){
+		throw generateParseException(ex);
+	}
+}
+
+ADQLOperand StringValueExpressionPrimary(): {StringConstant expr; ADQLColumn column; ADQLOperand op; Token left, right;} {
+	try{
+		(
+		// NULL
+		left=<NULL> { op = queryFactory.createNullValue(); ((NullValue)op).setPosition(new TextPosition(left)); return op; }
+		// string
+		| expr=String() {return expr;}
+		// unsigned numeric
+		| op=UnsignedNumeric() {return op;}
+		// set_function_specification
+		| op=SqlFunction() {return op;}
+		// column_reference
+		| column=Column() {column.setExpectedType('*'); return column;}
+		// LEFT_PAR value_expression RIGHT_PAR
+		| (left=<LEFT_PAR> (op=ValueExpression()) right=<RIGHT_PAR>) { WrappedOperand wop = queryFactory.createWrappedOperand(op); wop.setPosition(new TextPosition(left, right)); return wop; })
+	}catch(Exception ex){
+		throw generateParseException(ex);
+	}
+}
+
+ADQLOperand ValueExpression(): {ADQLOperand valueExpr = null; Token left, right; } {
+	try{
+		(LOOKAHEAD((<PLUS>|<MINUS>) | (Factor() (<PLUS>|<MINUS>|<ASTERISK>|<DIVIDE>))) valueExpr=NumericExpression()
+		| LOOKAHEAD(<COORDSYS> | <LOWER> | <UPPER> | (StringFactor() <CONCAT>)) valueExpr=StringExpression()
+		| LOOKAHEAD(<LEFT_PAR>) left=<LEFT_PAR> valueExpr=ValueExpression() right=<RIGHT_PAR> { valueExpr = queryFactory.createWrappedOperand(valueExpr); ((WrappedOperand)valueExpr).setPosition(new TextPosition(left, right)); }
+		| LOOKAHEAD(<REGULAR_IDENTIFIER_CANDIDATE> <LEFT_PAR>) valueExpr=UserDefinedFunction()
+		| LOOKAHEAD(<CAST> <LEFT_PAR>) valueExpr=CastFunction('?')
+		| LOOKAHEAD(<COALESCE> <LEFT_PAR>) valueExpr=ConditionalFunction()
+		| LOOKAHEAD(2) valueExpr=GeometryValueFunction()
+		| LOOKAHEAD(Column()) valueExpr=Column()
+		| LOOKAHEAD(String()) valueExpr=StringFactor()
+		| LOOKAHEAD(3) valueExpr=Factor()
+
+		/* At this position in this switch, all possibilities (including
+		 * Column() and NumericFunction) have already been tested and failed.
+		 * 
+		 * So, these final choices actually aim to throw an error set with the
+		 * current token and with an error message implying that a column name
+		 * was expected (which is generally the case in an ADQL query) or that
+		 * the parameters of the numeric function are incorrect. */
+		| LOOKAHEAD(2) valueExpr=NumericFunction()
+		/*
+		 * Note: Besides, this particular choice will generally be reached if an
+		 *       unexpected ADQL/SQL word is ending the query. */
+		| valueExpr=Column() )
+		{return valueExpr;}
+	}catch(Exception ex){
+		throw generateParseException(ex);
+	}
+}
+
+ADQLOperand NumericExpression(): {Token sign=null; ADQLOperand leftOp, rightOp=null;} {
+	(leftOp=NumericTerm() ((sign=<PLUS> | sign=<MINUS>) rightOp=NumericExpression())?)
+	{
+	if (sign == null)
+		return leftOp;
+	else{
+		try{
+			Operation operation = queryFactory.createOperation(leftOp, OperationType.getOperator(sign.image), rightOp);
+			operation.setPosition(new TextPosition(leftOp.getPosition(), rightOp.getPosition()));
+			return operation;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+	}
+}
+
+ADQLOperand NumericTerm(): {Token sign=null; ADQLOperand leftOp, rightOp=null;} {
+	(leftOp=Factor() ((sign=<ASTERISK> | sign=<DIVIDE>) rightOp=NumericTerm())?)
+	{
+	if (sign == null)
+		return leftOp;
+	else{
+		try{
+			Operation operation = queryFactory.createOperation(leftOp, OperationType.getOperator(sign.image), rightOp);
+			operation.setPosition(new TextPosition(leftOp.getPosition(), rightOp.getPosition()));
+			return operation;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+	}
+}
+
+ADQLOperand Factor(): {Token minusSign = null, bitNot = null; ADQLOperand op;} {
+	(
+		(<PLUS> | minusSign=<MINUS>)?
+		(LOOKAHEAD(2) op=NumericFunction() | op=NumericValueExpressionPrimary())
+	)
+	{
+		try {
+			if (minusSign != null) {
+				NegativeOperand negativeOp = queryFactory.createNegativeOperand(op);
+				negativeOp.setPosition(new TextPosition(new TextPosition(minusSign), op.getPosition()));
+				return negativeOp;
+			} else
+				return op;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+ADQLOperand StringExpression(): {ADQLOperand leftOp; ADQLOperand rightOp = null;} {
+	leftOp=StringFactor()
+	(
+		<CONCAT>
+		rightOp=StringFactor()
+		{
+			if (!(leftOp instanceof Concatenation)){
+				try{
+					ADQLOperand temp = leftOp;
+					leftOp = queryFactory.createConcatenation();
+					((Concatenation)leftOp).add(temp);
+				}catch(Exception ex){
+					throw generateParseException(ex);
+				}
+			}
+			((Concatenation)leftOp).add(rightOp);
+		}
+	)*
+	{
+		if (leftOp instanceof Concatenation){
+			Concatenation concat = (Concatenation)leftOp;
+			concat.setPosition(new TextPosition(concat.get(0).getPosition(), concat.get(concat.size()-1).getPosition()));
+		}else if (leftOp instanceof ADQLColumn){
+			((ADQLColumn)leftOp).setExpectedType('S');
+		}
+	  return leftOp;
+	}
+}
+
+ADQLOperand StringFactor(): {ADQLOperand op;} {
+	(op=ExtractCoordSys()
+	| op=LowerFunction()
+	| op=UpperFunction()
+	| op=StringCastFunction()
+	| LOOKAHEAD(2) op=UserDefinedFunction() { ((UserDefinedFunction)op).setExpectedType('S'); }
+	| op=StringValueExpressionPrimary())
+	{return op;}
+}
+
+GeometryValue<GeometryFunction> GeometryExpression(): {ADQLColumn col = null; UserDefinedFunction udf = null; CastFunction cf = null; GeometryFunction gf = null;} {
+	(
+	  	  gf=GeometryValueFunction()
+		| cf=GeometricCastFunction()
+		| LOOKAHEAD(2) udf=UserDefinedFunction()
+		| col=Column()
+	)
+	{
+		if (col != null){
+		  	col.setExpectedType('G');
+			return new GeometryValue<GeometryFunction>(col);
+		}else if (udf != null){
+			udf.setExpectedType('G');
+			return new GeometryValue<GeometryFunction>(udf);
+		}else if (cf != null) {
+			udf.setExpectedType('G');
+			return new GeometryValue<GeometryFunction>(cf);
+		}else
+			return new GeometryValue<GeometryFunction>(gf);
+	}
+}
+
+/* ********************************** */
+/* BOOLEAN EXPRESSIONS (WHERE clause) */
+/* ********************************** */
+ClauseConstraints ConditionsList(ClauseConstraints clause): {ADQLConstraint constraint = null; Token op = null; boolean notOp = false;} {
+	try{
+		[op=<NOT> {notOp = true;}]
+		constraint=Constraint()
+		{
+			if (notOp){
+			  	TextPosition oldPos = constraint.getPosition();
+				constraint = queryFactory.createNot(constraint);
+				((NotConstraint)constraint).setPosition(new TextPosition(op.beginLine, op.beginColumn, oldPos.endLine, oldPos.endColumn));
+			}
+			notOp = false;
+			
+			if (clause instanceof ADQLConstraint)
+				clause.add(constraint);
+			else
+				clause.add(constraint);
+		}
+		(
+			(op=<AND> | op=<OR>)
+			[<NOT> {notOp = true;}]
+			constraint=Constraint()
+			{
+				if (notOp){
+			  		TextPosition oldPos = constraint.getPosition();
+					constraint = queryFactory.createNot(constraint);
+					((NotConstraint)constraint).setPosition(new TextPosition(op.beginLine, op.beginColumn, oldPos.endLine, oldPos.endColumn));
+				}
+				notOp = false;
+				
+				if (clause instanceof ADQLConstraint)
+					clause.add(op.image, constraint);
+				else
+					clause.add(op.image, constraint);
+			}
+		)*
+	}catch(Exception ex){
+		throw generateParseException(ex);
+	}
+	{
+	  	if (!clause.isEmpty()){
+	  		TextPosition start = clause.get(0).getPosition();
+	  		TextPosition end = clause.get(clause.size()-1).getPosition();
+			clause.setPosition(new TextPosition(start, end));
+		}
+		return clause;
+	}
+}
+
+ADQLConstraint Constraint(): {ADQLConstraint constraint =  null; Token start, end;} {
+	(LOOKAHEAD(<LEFT_PAR> [<NOT>] Constraint())
+		start=<LEFT_PAR>
+		{
+			try{
+				constraint = queryFactory.createGroupOfConstraints();
+			}catch(Exception ex){
+				throw generateParseException(ex);
+			}
+		}
+		ConditionsList((ConstraintsGroup)constraint)
+		end=<RIGHT_PAR>
+		{ ((ConstraintsGroup)constraint).setPosition(new TextPosition(start, end)); }
+    |
+		 constraint=Predicate()
+	)
+	{return constraint;}
+}
+
+ADQLConstraint Predicate(): {ADQLSet q=null; ADQLColumn column=null; ADQLOperand strExpr1=null, strExpr2=null; ADQLOperand op; Token start, notToken = null, end; ADQLConstraint constraint = null;} {
+	try{
+		// exists_predicate
+		(
+		  (start=<EXISTS> q=SubQueryExpression()
+			{
+			  Exists e = queryFactory.createExists(q);
+			  e.setPosition(new TextPosition(start.beginLine, start.beginColumn, q.getPosition().endLine, q.getPosition().endColumn));
+			  return e;
+			}
+		  )
+		// null_predicate
+		| LOOKAHEAD(Column() <IS>)(column=Column() <IS> [notToken=<NOT>] end=<NULL>
+		    {
+		      IsNull in = queryFactory.createIsNull((notToken!=null), column);
+		      in.setPosition(new TextPosition(column.getPosition().beginLine, column.getPosition().beginColumn, end.endLine, (end.endColumn < 0) ? -1 : (end.endColumn + 1)));
+		      return in;
+		    }
+		   )
+		// like_predicate
+		| LOOKAHEAD(StringExpression() [<NOT>] <LIKE>) (strExpr1=StringExpression() [notToken=<NOT>] <LIKE> strExpr2=StringExpression()
+		    {
+		      Comparison comp = queryFactory.createComparison(strExpr1, (notToken==null)?ComparisonOperator.LIKE:ComparisonOperator.NOTLIKE, strExpr2);
+		      comp.setPosition(new TextPosition(strExpr1.getPosition(), strExpr2.getPosition()));
+		      return comp;
+		    }
+		  )
+		// ilike_predicate
+		| LOOKAHEAD(StringExpression() [<NOT>] <ILIKE>) (strExpr1=StringExpression() [notToken=<NOT>] <ILIKE> strExpr2=StringExpression()
+		    {
+		      Comparison comp = queryFactory.createComparison(strExpr1, (notToken==null)?ComparisonOperator.ILIKE:ComparisonOperator.NOTILIKE, strExpr2);
+		      comp.setPosition(new TextPosition(strExpr1.getPosition(), strExpr2.getPosition()));
+		      return comp;
+		    }
+		  )
+		| (op=ValueExpression()
+			(// comparison_predicate
+			(constraint=ComparisonEnd(op))
+			// between predicate
+			| LOOKAHEAD(2) constraint=BetweenEnd(op)
+			// in_predicate
+			| constraint=InEnd(op)
+			)
+		  )
+		)
+	}catch(Exception ex){
+		throw generateParseException(ex);
+	}
+	{return constraint;}
+}
+
+Comparison ComparisonEnd(ADQLOperand leftOp): {Token comp; ADQLOperand rightOp;} {
+	((comp=<EQUAL> | comp=<NOT_EQUAL> | comp=<LESS_THAN> | comp=<LESS_EQUAL_THAN> | comp=<GREATER_THAN> | comp=<GREATER_EQUAL_THAN>) rightOp=ValueExpression())
+	{
+		try{
+		  	Comparison comparison = queryFactory.createComparison(leftOp, ComparisonOperator.getOperator(comp.image), rightOp);
+		  	comparison.setPosition(new TextPosition(leftOp.getPosition(), rightOp.getPosition()));
+			return comparison;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+Between BetweenEnd(ADQLOperand leftOp): {Token start,notToken=null; ADQLOperand min, max;} {
+	[notToken=<NOT>] start=<BETWEEN> min=ValueExpression() <AND> max=ValueExpression()
+	{
+		try{
+		  	Between bet = queryFactory.createBetween((notToken!=null), leftOp, min, max);
+		  	if (notToken != null) start = notToken;
+		  	bet.setPosition(new TextPosition(start.beginLine, start.beginColumn, max.getPosition().endLine, max.getPosition().endColumn));
+			return bet;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+In InEnd(ADQLOperand leftOp): {Token not=null, start; ADQLSet q = null; ADQLOperand item; Vector<ADQLOperand> items = new Vector<ADQLOperand>();} {
+	[not=<NOT>] start=<IN>
+	(LOOKAHEAD(2) q=SubQueryExpression()
+	| (<LEFT_PAR> item=ValueExpression() {items.add(item);} (<COMMA> item=ValueExpression() {items.add(item);})* <RIGHT_PAR>))
+	{
+		try{
+		  	In in;
+		  	start = (not!=null) ? not : start;
+			if (q != null){
+				in = queryFactory.createIn(leftOp, q, not!=null);
+				in.setPosition(new TextPosition(start.beginLine, start.beginColumn, q.getPosition().endLine, q.getPosition().endColumn));
+			}else{
+				ADQLOperand[] list = new ADQLOperand[items.size()];
+				int i=0;
+				for(ADQLOperand op : items)
+					list[i++] = op;
+				in = queryFactory.createIn(leftOp, list, not!=null);
+				in.setPosition(new TextPosition(start.beginLine, start.beginColumn, list[list.length-1].getPosition().endLine, list[list.length-1].getPosition().endColumn));
+			}
+			return in;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+
+/* ************* */
+/* SQL FUNCTIONS */
+/* ************* */
+SQLFunction SqlFunction(): {Token fct, all=null, distinct=null, end; ADQLOperand op=null; SQLFunction funct = null;}{
+	try{
+		(
+			(fct=<COUNT> <LEFT_PAR> [distinct=<QUANTIFIER>] (all=<ASTERISK> | op=ValueExpression()) end=<RIGHT_PAR>
+			{
+			  funct = queryFactory.createSQLFunction((all!=null)?SQLFunctionType.COUNT_ALL:SQLFunctionType.COUNT, op, distinct != null && distinct.image.equalsIgnoreCase("distinct"));
+			  funct.setPosition(new TextPosition(fct, end));
+			})
+		|
+			((fct=<AVG> | fct=<MAX> | fct=<MIN> | fct=<SUM>) <LEFT_PAR> [distinct=<QUANTIFIER>] op=ValueExpression() end=<RIGHT_PAR> 
+			{
+			  funct = queryFactory.createSQLFunction(SQLFunctionType.valueOf(fct.image.toUpperCase()), op, distinct != null && distinct.image.equalsIgnoreCase("distinct"));
+			  funct.setPosition(new TextPosition(fct, end));
+			})
+		)
+	}catch(Exception ex){
+		throw generateParseException(ex);
+	}
+	{ return funct; }
+}
+
+
+/* ************** */
+/* ADQL FUNCTIONS */
+/* ************** */
+ADQLOperand[] Coordinates(): {ADQLOperand op1, op2;} {
+	op1=NumericExpression() <COMMA> op2=NumericExpression()
+	{return new ADQLOperand[]{op1,op2};}
+}
+
+GeometryFunction GeometryFunction(): {Token fct=null, end=null; GeometryValue<GeometryFunction> gvf1, gvf2; GeometryValue<PointFunction> gvp1, gvp2; GeometryFunction gf = null; PointFunction p1=null, p2=null; ADQLColumn col1 = null, col2 = null;} {
+	try{
+		// predicate_geometry_function
+		(
+			((fct=<CONTAINS> | fct=<INTERSECTS>) <LEFT_PAR> gvf1=GeometryExpression() <COMMA> gvf2=GeometryExpression() end=<RIGHT_PAR>
+			{
+				if (fct.image.equalsIgnoreCase("contains"))
+					gf = queryFactory.createContains(gvf1, gvf2);
+				else
+					gf = queryFactory.createIntersects(gvf1, gvf2);
+			})
+		// non_predicate_geometry_function
+		|	(fct=<AREA> <LEFT_PAR> gvf1=GeometryExpression() end=<RIGHT_PAR>) {gf = queryFactory.createArea(gvf1);}
+		|	(fct=<COORD1> <LEFT_PAR> (p1=Point() {gf = queryFactory.createCoord1(p1);} | col1=Column() {col1.setExpectedType('G'); gf = queryFactory.createCoord1(col1);}) end=<RIGHT_PAR>)
+		|	(fct=<COORD2> <LEFT_PAR> (p1=Point() {gf = queryFactory.createCoord2(p1);} | col1=Column() {col1.setExpectedType('G'); gf = queryFactory.createCoord2(col1);}) end=<RIGHT_PAR>)
+		|	(gf=DistanceFunction())
+		)
+	}catch(Exception ex){
+		throw generateParseException(ex);
+	}
+	
+	{
+	  if (fct != null)
+	  	gf.setPosition(new TextPosition(fct, end));
+	  return gf;
+	}
+}
+
+DistanceFunction DistanceFunction(): { Token fct=null, end=null; DistanceFunction gf; ADQLOperand lon, lat; GeometryValue<GeometryFunction> gvp1, gvp2; } {
+	try {
+		// DISTANCE(POINT,POINT)
+		(LOOKAHEAD(DistanceFunction2())
+			gf=DistanceFunction2()
+		|
+		// DISTANCE(lon1, lat1, lon2, lat2)
+			fct=<DISTANCE> <LEFT_PAR>
+			lon=NumericExpression() <COMMA> lat=NumericExpression() 
+			{ gvp1 = new GeometryValue<GeometryFunction>(queryFactory.createPoint(null, lon, lat)); }
+			<COMMA>
+			lon=NumericExpression() <COMMA> lat=NumericExpression() 
+			{ gvp2 = new GeometryValue<GeometryFunction>(queryFactory.createPoint(null, lon, lat)); } 
+			end=<RIGHT_PAR>
+			{
+				gf = queryFactory.createDistance(gvp1, gvp2);
+				gf.setPosition(new TextPosition(fct, end));
+			}
+		)
+		{ return gf; }
+	}catch(Exception ex){
+		throw generateParseException(ex);
+	}
+}
+
+GeometryValue<GeometryFunction> PointValue(): { GeometryFunction p=null; ADQLColumn col=null; UserDefinedFunction udf=null; } {
+	( p=Point()
+	| p=Centroid()
+	| LOOKAHEAD(2) udf=UserDefinedFunction()
+	| col=Column() )
+	{
+		if (p != null)
+			return new GeometryValue<GeometryFunction>(p);
+		else if (udf != null){
+		  	udf.setExpectedType('G');
+			return new GeometryValue<GeometryFunction>(udf);
+		}else{
+			col.setExpectedType('G');
+			return new GeometryValue<GeometryFunction>(col);
+		}
+	}
+}
+
+DistanceFunction DistanceFunction2(): { Token fct=null, end=null; DistanceFunction gf; GeometryValue<GeometryFunction> gvp1, gvp2; GeometryFunction p1=null, p2=null; ADQLColumn col1=null, col2=null; UserDefinedFunction udf1=null, udf2=null; } {
+	try {
+		fct=<DISTANCE> <LEFT_PAR>
+		gvp1=PointValue() 
+		<COMMA>
+		gvp2=PointValue()
+		end=<RIGHT_PAR>
+		{
+			gf = queryFactory.createDistance(gvp1, gvp2);
+			gf.setPosition(new TextPosition(fct, end));
+		}
+		{ return gf; }
+	}catch(Exception ex){
+		throw generateParseException(ex);
+	}
+}
+
+ADQLOperand CoordinateSystem(): { ADQLOperand coordSys=null; Token tok;}{
+	(
+      tok=<NULL> {coordSys=queryFactory.createNullValue(); ((NullValue)coordSys).setPosition(new TextPosition(tok)); }
+	| coordSys=String()
+	)
+	{ return coordSys; }
+}
+
+GeometryFunction GeometryValueFunction(): {Token fct=null, end=null; ADQLOperand coordSys, width, height; ADQLOperand[] coords = null, tmp; Vector<ADQLOperand> vCoords; ADQLOperand op=null; GeometryValue<GeometryFunction> gvf = null, gvp = null; GeometryFunction gf = null;} {
+	try{
+	  
+		// BOX (deprecated since ADQL-2.1)
+		(gf=Box()
+		
+		// CENTROID:
+		| gf=Centroid()
+
+		// CIRCLE:
+		| gf=Circle()
+		
+		// POINT: 
+		| gf=Point()
+
+		// POLYGON (deprecated since ADQL-2.1)
+		| gf=Polygon()
+		  
+		/* REGION (since ADQL-2.1, it only accepts a string literal but so that
+		 * offering more backward compatibility with existing TAP service, this
+		 * stays open to string expressions ; however a flag in the parser can
+		 * control the strict mode or not on this particular function): */
+		| (fct=<REGION> <LEFT_PAR> op=StringExpression() end=<RIGHT_PAR>)
+		  {
+		    gf = queryFactory.createRegion(op);
+		    gf.setPosition(new TextPosition(fct, end));
+		  }
+		)
+	}catch(Exception ex){
+		throw generateParseException(ex);
+	}
+	
+	{ return gf; }
+}
+
+GeometryFunction Box(): { GeometryFunction gf; } {
+	(
+		LOOKAHEAD(BoxWithPoint())
+		gf=BoxWithPoint()
+	|
+	    LOOKAHEAD(BoxWithCoordsAndNoCoordSys())
+     	gf=BoxWithCoordsAndNoCoordSys()
+    |
+     	gf=BoxWithCoordsAndCoordSys()
+	)
+	{ return gf; }
+}
+
+GeometryFunction BoxWithPoint(): { Token fct=null, end=null; ADQLOperand coordSys=null; ADQLOperand width, height; GeometryValue<GeometryFunction> center = null; } {
+	fct=<BOX> <LEFT_PAR>
+		[ coordSys=CoordinateSystem() <COMMA> ] // coord_sys (deprecated since ADQL-2.1)
+		center=PointValue()                 // center point
+		<COMMA> width=NumericExpression()       // width
+		<COMMA> height=NumericExpression()      // height
+	end=<RIGHT_PAR>
+	{
+		try {
+			GeometryFunction gf = queryFactory.createBox(coordSys, center, width, height);
+			gf.setPosition(new TextPosition(fct, end));
+			return gf;	
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+GeometryFunction BoxWithCoordsAndCoordSys(): { Token fct=null, end=null; ADQLOperand coordSys=null; ADQLOperand width, height; ADQLOperand[] coords = null; } {
+	fct=<BOX> <LEFT_PAR>
+		coordSys=CoordinateSystem() <COMMA> // coord_sys (deprecated since ADQL-2.1)
+		coords=Coordinates()                // center coordinates
+		<COMMA> width=NumericExpression()       // width
+		<COMMA> height=NumericExpression()      // height
+	end=<RIGHT_PAR>
+	{
+		try {
+			GeometryFunction gf = queryFactory.createBox(coordSys, coords[0], coords[1], width, height);
+			gf.setPosition(new TextPosition(fct, end));
+			return gf;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+GeometryFunction BoxWithCoordsAndNoCoordSys(): { Token fct=null, end=null; ADQLOperand width, height; ADQLOperand[] coords = null; } {
+	fct=<BOX> <LEFT_PAR>
+		coords=Coordinates()                // center coordinates
+		<COMMA> width=NumericExpression()       // width
+		<COMMA> height=NumericExpression()      // height
+	end=<RIGHT_PAR>
+	{
+		try {
+			GeometryFunction gf = queryFactory.createBox(null, coords[0], coords[1], width, height);
+			gf.setPosition(new TextPosition(fct, end));
+			return gf;	
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+GeometryFunction Circle(): { GeometryFunction gf; } {
+	(
+		LOOKAHEAD(CircleWithPoint())
+		gf=CircleWithPoint()
+	|
+	    LOOKAHEAD(CircleWithCoordsAndNoCoordSys())
+     	gf=CircleWithCoordsAndNoCoordSys()
+    |
+        gf=CircleWithCoordsAndCoordSys()
+	)
+	{ return gf; }
+}
+
+GeometryFunction CircleWithPoint(): { Token fct=null, end=null; ADQLOperand coordSys=null; ADQLOperand width; GeometryValue<GeometryFunction> center = null; } {
+	fct=<CIRCLE> <LEFT_PAR>
+		[ coordSys=CoordinateSystem() <COMMA> ] // coord_sys (deprecated since ADQL-2.1)
+		center=PointValue()                 // center coordinates
+		<COMMA> width=NumericExpression()       // radius
+	end=<RIGHT_PAR>
+	{
+		try {
+			GeometryFunction gf = queryFactory.createCircle(coordSys, center, width);
+			gf.setPosition(new TextPosition(fct, end));
+			return gf;	
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+GeometryFunction CircleWithCoordsAndCoordSys(): { Token fct=null, end=null; ADQLOperand coordSys=null; ADQLOperand width; ADQLOperand[] coords = null; } {
+	fct=<CIRCLE> <LEFT_PAR>
+		coordSys=CoordinateSystem() <COMMA> // coord_sys (deprecated since ADQL-2.1)
+		coords=Coordinates()                // center coordinates
+		<COMMA> width=NumericExpression()       // radius
+	end=<RIGHT_PAR>
+	{
+		try {
+			GeometryFunction gf = queryFactory.createCircle(coordSys, coords[0], coords[1], width);
+			gf.setPosition(new TextPosition(fct, end));
+			return gf;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+GeometryFunction CircleWithCoordsAndNoCoordSys(): { Token fct=null, end=null; ADQLOperand width; ADQLOperand[] coords = null; } {
+	fct=<CIRCLE> <LEFT_PAR>
+		coords=Coordinates()           // center coordinates
+		<COMMA> width=NumericExpression()  // radius
+	end=<RIGHT_PAR>
+	{
+		try {
+			GeometryFunction gf = queryFactory.createCircle(null, coords[0], coords[1], width);
+			gf.setPosition(new TextPosition(fct, end));
+			return gf;	
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+CentroidFunction Centroid(): {Token fct=null, end=null; GeometryValue<GeometryFunction> gvf = null; } {
+	(fct=<CENTROID> <LEFT_PAR> gvf=GeometryExpression() end=<RIGHT_PAR>)
+	{
+		try {
+	  		CentroidFunction cf = queryFactory.createCentroid(gvf);
+	  		cf.setPosition(new TextPosition(fct, end));
+	  		return cf;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+PointFunction Point(): {PointFunction pf;} {
+	(LOOKAHEAD(PointWithoutCoordSys())
+	  pf=PointWithoutCoordSys()
+	|
+	  pf=PointWithCoordSys()
+	)
+	{return pf;}
+}
+
+PointFunction PointWithoutCoordSys(): {Token start, end; ADQLOperand[] coords; PointFunction pf;} {
+	start=<POINT> <LEFT_PAR> coords=Coordinates() end=<RIGHT_PAR>
+	{
+		try{
+			pf = queryFactory.createPoint(null, coords[0], coords[1]);
+			pf.setPosition(new TextPosition(start, end));
+			return pf;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+PointFunction PointWithCoordSys(): {Token start, end; ADQLOperand coordSys=null; ADQLOperand[] coords; PointFunction pf;} {
+	start=<POINT> <LEFT_PAR>
+		coordSys=CoordinateSystem() <COMMA> // coord_sys (deprecated since ADQL-2.1)
+		coords=Coordinates()                // coordinates
+	end=<RIGHT_PAR>
+	{
+		try{
+			pf = queryFactory.createPoint(coordSys, coords[0], coords[1]);
+			pf.setPosition(new TextPosition(start, end));
+			return pf;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+GeometryFunction Polygon(): { GeometryFunction gf; } {
+	(
+		LOOKAHEAD(PolygonWithPoints())
+		gf=PolygonWithPoints()
+	|
+	    LOOKAHEAD(PolygonWithCoordsAndNoCoordSys())
+		gf=PolygonWithCoordsAndNoCoordSys()
+	|
+		gf=PolygonWithCoordsAndCoordSys()
+	)
+	{ return gf; }
+}
+
+GeometryFunction PolygonWithPoints(): { Token fct=null, end=null; ADQLOperand coordSys=null; GeometryValue<GeometryFunction> tmp; Vector<ADQLOperand> vCoords; } {
+	fct=<POLYGON> <LEFT_PAR>
+		[ coordSys=CoordinateSystem() <COMMA> ]  // coord_sys (deprecated since ADQL-2.1)
+		{ vCoords = new Vector<ADQLOperand>(); } // points (min. 3)
+		 tmp=PointValue() {vCoords.add(tmp);}
+		 <COMMA> tmp=PointValue() {vCoords.add(tmp);}
+		 <COMMA> tmp=PointValue() {vCoords.add(tmp);}
+		(<COMMA> tmp=PointValue() {vCoords.add(tmp);})*
+	end=<RIGHT_PAR>
+	{
+		try {
+			GeometryFunction gf = queryFactory.createPolygon(coordSys, vCoords);
+			gf.setPosition(new TextPosition(fct, end));
+			return gf;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+GeometryFunction PolygonWithCoordsAndCoordSys(): { Token fct=null, end=null; ADQLOperand coordSys=null; ADQLOperand[] coords, tmp; Vector<ADQLOperand> vCoords; } {
+	fct=<POLYGON> <LEFT_PAR>
+		coordSys=CoordinateSystem() <COMMA>        // coord_sys (deprecated since ADQL-2.1)
+		{ vCoords = new Vector<ADQLOperand>(); }   // coordinates (min. 3 pairs)
+		 tmp=Coordinates() {vCoords.add(tmp[0]); vCoords.add(tmp[1]);}
+		 <COMMA> tmp=Coordinates() {vCoords.add(tmp[0]); vCoords.add(tmp[1]);}
+		 <COMMA> tmp=Coordinates() {vCoords.add(tmp[0]); vCoords.add(tmp[1]);}
+		(<COMMA> tmp=Coordinates() {vCoords.add(tmp[0]); vCoords.add(tmp[1]);})*
+	end=<RIGHT_PAR>
+	{
+		try {
+			GeometryFunction gf = queryFactory.createPolygon(coordSys, vCoords);
+			gf.setPosition(new TextPosition(fct, end));
+			return gf;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+GeometryFunction PolygonWithCoordsAndNoCoordSys(): { Token fct=null, end=null; ADQLOperand[] coords, tmp; Vector<ADQLOperand> vCoords; } {
+	fct=<POLYGON> <LEFT_PAR>
+		{ vCoords = new Vector<ADQLOperand>(); }                  // coordinates (min. 3 pairs)
+		 tmp=Coordinates() {vCoords.add(tmp[0]); vCoords.add(tmp[1]);}
+		 <COMMA> tmp=Coordinates() {vCoords.add(tmp[0]); vCoords.add(tmp[1]);}
+		 <COMMA> tmp=Coordinates() {vCoords.add(tmp[0]); vCoords.add(tmp[1]);}
+		(<COMMA> tmp=Coordinates() {vCoords.add(tmp[0]); vCoords.add(tmp[1]);})*
+	end=<RIGHT_PAR>
+	{
+		try {
+			GeometryFunction gf = queryFactory.createPolygon(null, vCoords);
+			gf.setPosition(new TextPosition(fct, end));
+			return gf;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+GeometryFunction ExtractCoordSys(): {Token start, end; GeometryValue<GeometryFunction> gvf;} {
+	start=<COORDSYS> <LEFT_PAR> gvf=GeometryExpression() end=<RIGHT_PAR>
+	{
+		try{
+			GeometryFunction gf = queryFactory.createExtractCoordSys(gvf);
+			gf.setPosition(new TextPosition(start, end));
+			return gf;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+/* **************** */
+/* STRING FUNCTIONS */
+/* **************** */
+
+LowerFunction LowerFunction(): { Token start, end; ADQLOperand str; } {
+	start=<LOWER> <LEFT_PAR> str=StringExpression() end=<RIGHT_PAR>
+	{
+	  	try{
+			LowerFunction lf = queryFactory.createLowerFunction(str);
+			lf.setPosition(new TextPosition(start, end));
+			return lf;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+UpperFunction UpperFunction(): { Token start, end; ADQLOperand str; } {
+	start=<UPPER> <LEFT_PAR> str=StringExpression() end=<RIGHT_PAR>
+	{
+	  	try{
+			UpperFunction lf = queryFactory.createUpperFunction(str);
+			lf.setPosition(new TextPosition(start, end));
+			return lf;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+/* ***************** */
+/* NUMERIC FUNCTIONS */
+/* ***************** */
+ADQLFunction NumericFunction(): {ADQLFunction fct;} {
+	(fct=MathFunction()
+	| fct=TrigFunction()
+	| fct=GeometryFunction()
+	| fct=InUnitFunction()
+	| fct=NumericCastFunction()
+	| fct=UserDefinedFunction() { ((UserDefinedFunction)fct).setExpectedType('N'); })
+	{return fct;}
+}
+
+InUnitFunction InUnitFunction() : { Token start, end; ADQLOperand value, destUnit; } {
+	start=<IN_UNIT> <LEFT_PAR> value=NumericExpression() <COMMA> destUnit=StringExpression() end=<RIGHT_PAR>
+	{
+		try {
+			InUnitFunction fct = queryFactory.createInUnitFunction(value, destUnit);
+			fct.setPosition(new TextPosition(start, end));
+			return fct;
+		}catch(Exception ex) {
+			throw generateParseException(ex);
+		}
+	}
+}
+
+MathFunction MathFunction(): {Token fct=null, end; ADQLOperand param1=null, param2=null; NumericConstant integerValue = null;} {
+	try{
+		((fct=<ABS> <LEFT_PAR> param1=NumericExpression() end=<RIGHT_PAR>)
+		| (fct=<CEILING> <LEFT_PAR> param1=NumericExpression() end=<RIGHT_PAR>)
+		| (fct=<DEGREES> <LEFT_PAR> param1=NumericExpression() end=<RIGHT_PAR>)
+		| (fct=<EXP> <LEFT_PAR> param1=NumericExpression() end=<RIGHT_PAR>)
+		| (fct=<FLOOR> <LEFT_PAR> param1=NumericExpression() end=<RIGHT_PAR>)
+		| (fct=<LOG> <LEFT_PAR> param1=NumericExpression() end=<RIGHT_PAR>)
+		| (fct=<LOG10> <LEFT_PAR> param1=NumericExpression() end=<RIGHT_PAR>)
+		| (fct=<MOD> <LEFT_PAR> param1=NumericExpression() <COMMA> param2=NumericExpression() end=<RIGHT_PAR>)
+		| (fct=<PI> <LEFT_PAR> end=<RIGHT_PAR>)
+		| (fct=<POWER> <LEFT_PAR> param1=NumericExpression() <COMMA> param2=NumericExpression() end=<RIGHT_PAR>)
+		| (fct=<RADIANS> <LEFT_PAR> param1=NumericExpression() end=<RIGHT_PAR>)
+		| (fct=<RAND> <LEFT_PAR> (param1=NumericExpression())? end=<RIGHT_PAR>)
+		| (fct=<ROUND> <LEFT_PAR> param1=NumericExpression() (<COMMA> param2=SignedInteger())? end=<RIGHT_PAR>)
+		| (fct=<SQRT> <LEFT_PAR> param1=NumericExpression() end=<RIGHT_PAR>)
+		| (fct=<TRUNCATE> <LEFT_PAR> param1=NumericExpression() (<COMMA> param2=SignedInteger())? end=<RIGHT_PAR>))
+		{
+			MathFunction mf = queryFactory.createMathFunction(MathFunctionType.valueOf(fct.image.toUpperCase()), param1, param2);
+			mf.setPosition(new TextPosition(fct, end));
+			return mf;
+		}
+	}catch(Exception ex){
+		throw generateParseException(ex);
+	}
+}
+
+MathFunction TrigFunction(): {Token fct=null, end; ADQLOperand param1=null, param2=null;} {
+	((fct=<ACOS> <LEFT_PAR> param1=NumericExpression() end=<RIGHT_PAR>)
+	| (fct=<ASIN> <LEFT_PAR> param1=NumericExpression() end=<RIGHT_PAR>)
+	| (fct=<ATAN> <LEFT_PAR> param1=NumericExpression() end=<RIGHT_PAR>)
+	| (fct=<ATAN2> <LEFT_PAR> param1=NumericExpression() <COMMA> param2=NumericExpression() end=<RIGHT_PAR>)
+	| (fct=<COS> <LEFT_PAR> param1=NumericExpression() end=<RIGHT_PAR>)
+	| (fct=<COT> <LEFT_PAR> param1=NumericExpression() end=<RIGHT_PAR>)
+	| (fct=<SIN> <LEFT_PAR> param1=NumericExpression() end=<RIGHT_PAR>)
+	| (fct=<TAN> <LEFT_PAR> param1=NumericExpression() end=<RIGHT_PAR>))
+	{
+		try{
+			MathFunction mf = queryFactory.createMathFunction(MathFunctionType.valueOf(fct.image.toUpperCase()), param1, param2);
+			mf.setPosition(new TextPosition(fct, end));
+			return mf;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+/* ************* */
+/* CAST FUNCTION */
+/* ************* */
+
+CastFunction NumericCastFunction(): { CastFunction fct; } {
+	fct=CastFunction('N')
+	{
+	  fct.setExpectedType('N');
+	  return fct;
+	}
+}
+
+CastFunction StringCastFunction(): { CastFunction fct; } {
+	fct=CastFunction('S')
+	{
+	  fct.setExpectedType('S');
+	  return fct;
+	}
+}
+
+CastFunction GeometricCastFunction(): { CastFunction fct; } {
+	fct=CastFunction('G')
+	{
+	  fct.setExpectedType('G');
+	  return fct;
+	}
+}
+
+CastFunction CastFunction(char expectedType): {Token fct, end, typeName, typeSize=null; ADQLOperand value=null; TargetType type;} {
+	fct=<CAST> <LEFT_PAR> value=ValueExpression() <AS> type=CastDatatype(expectedType) end=<RIGHT_PAR>
+	{
+		try{
+			CastFunction cast = queryFactory.createCastFunction(value, type);
+			cast.setPosition(new TextPosition(fct, end));
+			return cast;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+TargetType CastDatatype(char expectedType): {Token typeName, typeLength=null, start=null, end=null; String customName = null; ADQLOperand param; ArrayList<ADQLOperand> customParams = new ArrayList<ADQLOperand>();} {
+	(
+	  		(typeName=<NO_LENGTH_DATATYPE> | typeName=<POINT> | typeName=<CIRCLE> | typeName=<POLYGON>)
+		|
+			typeName=<VARIABLE_LENGTH_DATATYPE> (<LEFT_PAR> typeLength=<UNSIGNED_INTEGER> end=<RIGHT_PAR>)?
+		|
+			start=<REGULAR_IDENTIFIER_CANDIDATE>     { customName = start.image; typeName = start; }
+			(typeName=<REGULAR_IDENTIFIER_CANDIDATE> { customName += " "+typeName.image; })*
+			(<LEFT_PAR>
+				param=ValueExpression()          {customParams.add(param);}
+				(<COMMA> param=ValueExpression() {customParams.add(param);})*
+			end=<RIGHT_PAR>)?
+	)
+	{
+  		try{
+  		  	TargetType type;
+  		  	if (customName != null) {
+  		  		type = new CustomTargetType(customName, customParams.toArray(new ADQLOperand[customParams.size()]));
+  		 	}else{
+  		 		type = new StandardTargetType(typeName.image, (typeLength == null ? -1 : Integer.parseInt(typeLength.image)));
+  		 	}
+			if (end != null)
+				type.setPosition(new TextPosition((start != null ? start : typeName), end));
+			else
+				type.setPosition(new TextPosition(start != null ? start : typeName));
+
+			// Ensure the returned datatype matched the expectation:
+  		  	final String typeNameStr = (customName == null ? typeName.image : customName);
+			switch(expectedType) {
+			  case 'n':
+			  case 'N':
+			  	if (!type.isNumeric()) {
+			  	  	StringBuilder buf = new StringBuilder("Encountered: \"");
+			  	  	buf.append(typeNameStr).append("\"!");
+			  	  	buf.append(" Was expecting one numeric datatype among: ");
+			  	  	boolean first = true;
+			  	  	for(DBDatatype d : StandardTargetType.getNumericDatatypes()) { 
+						if (!first) buf.append(", ");
+						buf.append('"').append((d == DBDatatype.DOUBLE ? "DOUBLE PRECISION" : d.toString())).append('"');
+						first = false;
+			  	 	}
+			  	 	buf.append('.');
+			  		throw new ParseException(buf.toString(), type.getPosition());
+			  	}
+			  	break;
+			  case 's':
+			  case 'S':
+			  	if (!type.isString()) {
+			  	  	StringBuilder buf = new StringBuilder("Encountered: \"");
+			  	  	buf.append(typeNameStr).append("\"!");
+			  	  	buf.append(" Was expecting one character datatype among: ");
+			  	  	boolean first = true;
+			  	  	for(DBDatatype d : StandardTargetType.getStringDatatypes()) {
+						if (!first) buf.append(", ");
+						buf.append('"').append(d.toString()).append('"');
+						first = false;
+			  	 	}
+			  	 	buf.append('.');
+			  		throw new ParseException(buf.toString(), type.getPosition());
+			  	}
+			  	break;
+			  case 'g':
+			  case 'G':
+			  	if (!type.isGeometry()) {
+			  	  	StringBuilder buf = new StringBuilder("Encountered: \"");
+			  	  	buf.append(typeNameStr).append("\"!");
+			  	  	buf.append(" Was expecting one geometric datatype among: ");
+			  	  	boolean first = true;
+			  	  	for(DBDatatype d : StandardTargetType.getGeometricDatatypes()) { 
+						if (!first) buf.append(", ");
+						buf.append('"').append(d.toString()).append('"');
+						first = false;
+			  	 	}
+			  	 	buf.append('.');
+			  		throw new ParseException(buf.toString(), type.getPosition());
+			 	}
+			  	break;
+			}
+			
+			return type;
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+
+/* ********************* */
+/* CONDITIONAL FUNCTIONS */
+/* ********************* */
+
+ADQLOperand ConditionalFunction(): {Token fct, end; ArrayList<ADQLOperand> operands = new ArrayList<ADQLOperand>(3); ADQLOperand op;} {
+    fct=<COALESCE> <LEFT_PAR>
+    op=ValueExpression() { operands.add(op); }
+    ( <COMMA> op=ValueExpression() { operands.add(op); } )*
+    end=<RIGHT_PAR>
+    {
+        try{
+            CoalesceFunction coalesce = queryFactory.createCoalesceFunction(operands);
+            coalesce.setPosition(new TextPosition(fct, end));
+            return coalesce;
+        }catch(Exception ex){
+            throw generateParseException(ex);
+        }
+    }
+}
+
+/* ********************* */
+/* USER DEFINED FUNCTION */
+/* ********************* */
+
+UserDefinedFunction UserDefinedFunction(): {Token fct, end; Vector<ADQLOperand> params = new Vector<ADQLOperand>(); ADQLOperand op;} {
+	fct=<REGULAR_IDENTIFIER_CANDIDATE> <LEFT_PAR> (op=ValueExpression() {params.add(op);} (<COMMA> op=ValueExpression() {params.add(op);})*)? end=<RIGHT_PAR>
+	{
+		// Ensure the given function name is valid: 
+		if (!isRegularIdentifier(fct.image))
+			throw new ParseException("Invalid (User Defined) Function name: \""+fct.image+"\"!", new TextPosition(fct));
+		
+		try{
+			//  Build the parameters list:
+			ADQLOperand[] parameters = new ADQLOperand[params.size()];
+			for(int i=0; i<params.size(); i++)
+				parameters[i] = params.get(i);
+			
+			// Create the UDF function:
+			UserDefinedFunction udf = queryFactory.createUserDefinedFunction(fct.image, parameters);
+			udf.setPosition(new TextPosition(fct, end));
+			return udf;
+			
+		}catch(UnsupportedOperationException uoe){
+		  	/* This catch clause is just for backward compatibility:
+		  	 * if the createUserDefinedFunction(...) is overridden and
+		  	 * the function can not be identified a such exception may be thrown). */
+			throw new ParseException(uoe.getMessage(), new TextPosition(fct, token));
+		}catch(Exception ex){
+			throw generateParseException(ex);
+		}
+	}
+}
+

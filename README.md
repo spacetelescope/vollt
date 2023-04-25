@@ -4,16 +4,22 @@ README
 Preambule
 ---------
 
-This GitHub repository contains the sources of 3 libraries implementing [IVOA](http://www.ivoa.net/ "International Virtual Observatory Alliance") standards and protocols:
-* [ADQL](http://www.ivoa.net/documents/latest/ADQL.html "Astronomical Data Query Language")
+This GitHub repository contains the sources of the library-set named VOLLT. It
+contains 3 libraries implementing [IVOA](http://www.ivoa.net/ "International Virtual Observatory Alliance")
+standards and protocols:
+
+* [ADQL-2.1](http://www.ivoa.net/documents/ADQL/20180112/index.html "Astronomical Data Query Language")
 * [UWS-1.1](http://www.ivoa.net/documents/UWS/20161024/index.html "Universal Worker Service pattern")
 * [TAP](http://www.ivoa.net/documents/TAP/ "Table Access Protocol")
+
+_**NOTE:** Support of ADQL-2.1 currently under development. For the moment, TAP
+is still using ADQL-2.0 by default._
 
 ### Documentation
 For a complete documentation/tutorial and a demo of the 3 libraries you should visit the following websites: [ADQLTuto](http://cdsportal.u-strasbg.fr/adqltuto), [UWSTuto](http://cdsportal.u-strasbg.fr/uwstuto) and [TAPTuto](http://cdsportal.u-strasbg.fr/taptuto).
 
 ### Java version
-These libraries are developed in **Java 7**.
+These libraries are developed in **Java 8**.
 
 ### License
 The three of these libraries are under the terms of the [LGPL v3 license](https://www.gnu.org/licenses/lgpl.html). You can find the full description and all the conditions of use in the files src/COPYING and src/COPYING.LESSER.
@@ -40,7 +46,7 @@ Below are summed up the dependencies of each library:
 | Package `cds.utils`    |  X   |     |  X  |
 | Postgres JDBC Driver   |  X   |     |  X  |
 | Package `uws`          |      |  X  |  X  |
-| JSON library            |      |  X  |  X  |
+| JSON library           |      |  X  |  X  |
 | HTTP Servlet API       |      |  X  |  X  |
 | HTTP Multipart Library |      |  X  |  X  |
 | Packages `cds.*`       |      |     |  X  |

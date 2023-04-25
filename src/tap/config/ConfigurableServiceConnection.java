@@ -21,9 +21,10 @@ package tap.config;
  */
 
 import adql.db.FunctionDef;
-import adql.db.STCS;
-import adql.parser.ParseException;
+import adql.db.region.CoordSys;
+import adql.parser.grammar.ParseException;
 import adql.query.operand.function.UserDefinedFunction;
+import adql.translator.FunctionTranslator;
 import tap.ServiceConnection;
 import tap.TAPException;
 import tap.TAPFactory;
@@ -153,6 +154,11 @@ public final class ConfigurableServiceConnection implements ServiceConnection {
 	private ArrayList<String> geometries = null;
 	private final String GEOMETRY_REGEXP = "(AREA|BOX|CENTROID|CIRCLE|CONTAINS|DISTANCE|COORD1|COORD2|COORDSYS|INTERSECTS|POINT|POLYGON|REGION)";
 
+	/** Indicated whether only a string literal is allowed as parameter of
+	 * REGION(...) (default) or not.
+	 * @since 2.4 */
+	private boolean isExtendedRegionExpressionAllowed = false;
+
 	/** List of all known and allowed User Defined Functions.
 	 * <em>If NULL, any unknown function is allowed. If empty list, none is
 	 * allowed.</em> */
@@ -237,6 +243,7 @@ public final class ConfigurableServiceConnection implements ServiceConnection {
 		// 10. CONFIGURE ADQL:
 		initCoordSys(tapConfig);
 		initADQLGeometries(tapConfig);
+		isExtendedRegionExpressionAllowed = Boolean.parseBoolean(getProperty(tapConfig, KEY_EXTENDED_REGION_EXPRESSION));
 		initUDFs(tapConfig);
 		isFixOnFailEnabled = Boolean.parseBoolean(getProperty(tapConfig, KEY_FIX_ON_FAIL));
 
@@ -1101,7 +1108,7 @@ public final class ConfigurableServiceConnection implements ServiceConnection {
 					// parse the coordinate system regular expression in order to check it:
 					else {
 						try {
-							STCS.buildCoordSysRegExp(new String[]{ item });
+							CoordSys.buildCoordSysRegExp(new String[]{ item });
 							lstCoordSys.add(item);
 						} catch(ParseException pe) {
 							throw new TAPException("Incorrect coordinate system regular expression (\"" + item + "\"): " + pe.getMessage(), pe);
@@ -1241,38 +1248,65 @@ public final class ConfigurableServiceConnection implements ServiceConnection {
 					if (!ignoreUdf) {
 						// Add the new UDF in the list:
 						try {
-							// resolve the function signature:
+
+							// Resolve the function signature:
 							FunctionDef def = FunctionDef.parse(signature);
-							// resolve the class name...
+
+							/* Resolve the custom UserDefinedFunction or
+							 * FunctionTranslator class name... */
 							if (classpath != null) {
+								// if really a class path:
 								if (isClassName(classpath)) {
-									Class<? extends UserDefinedFunction> fctClass = null;
-									try {
-										// fetch the class:
-										fctClass = fetchClass(classpath, KEY_UDFS, UserDefinedFunction.class);
-										// set the class inside the UDF definition:
-										def.setUDFClass(fctClass);
-									} catch(TAPException te) {
-										throw new TAPException("Invalid class name for the UDF definition \"" + def + "\": " + te.getMessage() + " (position in the property " + KEY_UDFS + ": " + (udfOffset + matcher.start(GROUP_CLASSPATH)) + "-" + (udfOffset + matcher.end(GROUP_CLASSPATH)) + ")", te);
-									} catch(IllegalArgumentException iae) {
-										throw new TAPException("Invalid class name for the UDF definition \"" + def + "\": missing a constructor with a single parameter of type ADQLOperand[] " + (fctClass != null ? "in the class \"" + fctClass.getName() + "\"" : "") + "! (position in the property " + KEY_UDFS + ": " + (udfOffset + matcher.start(GROUP_CLASSPATH)) + "-" + (udfOffset + matcher.end(GROUP_CLASSPATH)) + ")");
+									// CASE: custom UserDefinedFunction
+									if (isClassFor(classpath, UserDefinedFunction.class)) {
+										Class<? extends UserDefinedFunction> fctClass = null;
+										try {
+											// fetch the class:
+											fctClass = fetchClass(classpath, KEY_UDFS, UserDefinedFunction.class);
+											// set the class inside the UDF definition:
+											def.setUDFClass(fctClass);
+										} catch(TAPException te) {
+											throw new TAPException("Invalid UserDefinedFunction class name for the UDF definition \"" + def + "\": " + te.getMessage() + " (position in the property " + KEY_UDFS + ": " + (udfOffset + matcher.start(GROUP_CLASSPATH)) + "-" + (udfOffset + matcher.end(GROUP_CLASSPATH)) + ")", te);
+										} catch(IllegalArgumentException iae) {
+											throw new TAPException("Invalid UserDefinedFunction class name for the UDF definition \"" + def + "\": missing a constructor with a single parameter of type ADQLOperand[] " + (fctClass != null ? "in the class \"" + fctClass.getName() + "\"" : "") + "! (position in the property " + KEY_UDFS + ": " + (udfOffset + matcher.start(GROUP_CLASSPATH)) + "-" + (udfOffset + matcher.end(GROUP_CLASSPATH)) + ")");
+										}
 									}
+									// CASE: custom FunctionTranslator
+									else if (isClassFor(classpath, FunctionTranslator.class)) {
+										Class<? extends FunctionTranslator> translatorClass = null;
+										try {
+											// fetch the class:
+											translatorClass = fetchClass(classpath, KEY_UDFS, FunctionTranslator.class);
+											// set the translator into the UDF definition:
+											def.setTranslatorClass(translatorClass);
+										} catch(TAPException te) {
+											throw new TAPException("Invalid FunctionTranslator class name for the UDF definition \"" + def + "\": " + te.getMessage() + " (position in the property " + KEY_UDFS + ": " + (udfOffset + matcher.start(GROUP_CLASSPATH)) + "-" + (udfOffset + matcher.end(GROUP_CLASSPATH)) + ")", te);
+										} catch(IllegalArgumentException iae) {
+											throw new TAPException("Invalid FunctionTranslator class name for the UDF definition \"" + def + "\": missing an empty constructor " + (translatorClass != null ? "in the class \"" + translatorClass.getName() + "\"" : "") + "! (position in the property " + KEY_UDFS + ": " + (udfOffset + matcher.start(GROUP_CLASSPATH)) + "-" + (udfOffset + matcher.end(GROUP_CLASSPATH)) + ")");
+										}
+									}
+									// CASE: any other class
+									else
+										throw new TAPException("Unexpected class type for the UDF definition \"" + def + "\": \"" + classpath + "\" is neither a UserDefinedFunction extension nor a FunctionTranslator implementation! (position in the property " + KEY_UDFS + ": " + (udfOffset + matcher.start(GROUP_CLASSPATH)) + "-" + (udfOffset + matcher.end(GROUP_CLASSPATH)) + ")");
 								} else
 									throw new TAPException("Invalid class name for the UDF definition \"" + def + "\": \"" + classpath + "\" is not a class name (or is not surrounding by {} as expected in this property file)! (position in the property " + KEY_UDFS + ": " + (udfOffset + matcher.start(GROUP_CLASSPATH)) + "-" + (udfOffset + matcher.end(GROUP_CLASSPATH)) + ")");
 							}
-							// ...or the given translation:
+							// ...or the given translation pattern:
 							else if (translation != null) {
 								try {
 									def.setTranslationPattern(translation);
 								} catch(IllegalArgumentException iae) {
-									throw new TAPException("Invalid argument reference in the translation pattern for the UDF \"" + def + "\"! Cause: " + iae.getMessage());
+									throw new TAPException("Incorrect translation pattern for the UDF \"" + def + "\"! Cause: " + iae.getMessage());
 								}
 							}
-							// set the description if any:
+
+							// Set the description if any:
 							if (description != null)
 								def.description = description;
-							// add the UDF:
+
+							// Finally, add the UDF:
 							udfs.add(def);
+
 						} catch(ParseException pe) {
 							throw new TAPException("Wrong UDF declaration syntax: " + pe.getMessage() + " (position in the property " + KEY_UDFS + ": " + (udfOffset + matcher.start(GROUP_SIGNATURE)) + "-" + (udfOffset + matcher.end(GROUP_SIGNATURE)) + ")", pe);
 						}
@@ -1736,6 +1770,11 @@ public final class ConfigurableServiceConnection implements ServiceConnection {
 	@Override
 	public Collection<String> getGeometries() {
 		return geometries;
+	}
+
+	@Override
+	public boolean isExtendedRegionExpressionAllowed() {
+		return isExtendedRegionExpressionAllowed;
 	}
 
 	@Override

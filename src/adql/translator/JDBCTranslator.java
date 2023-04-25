@@ -16,29 +16,34 @@ package adql.translator;
  * You should have received a copy of the GNU Lesser General Public License
  * along with ADQLLibrary.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright 2017-2019 - Astronomisches Rechen Institut (ARI),
+ * Copyright 2017-2023 - Astronomisches Rechen Institut (ARI),
  *                       UDS/Centre de Données astronomiques de Strasbourg (CDS)
  */
 
 import java.util.Iterator;
 
 import adql.db.DBColumn;
+import adql.db.DBIdentifier;
 import adql.db.DBTable;
 import adql.db.DBTableAlias;
 import adql.db.DBType;
-import adql.db.STCS.Region;
 import adql.db.exception.UnresolvedJoinException;
-import adql.parser.ParseException;
+import adql.db.region.Region;
+import adql.parser.grammar.ParseException;
 import adql.query.ADQLList;
 import adql.query.ADQLObject;
 import adql.query.ADQLOrder;
 import adql.query.ADQLQuery;
+import adql.query.ADQLSet;
+import adql.query.ClauseADQL;
 import adql.query.ClauseConstraints;
 import adql.query.ClauseSelect;
 import adql.query.ColumnReference;
 import adql.query.IdentifierField;
 import adql.query.SelectAllColumns;
 import adql.query.SelectItem;
+import adql.query.SetOperation;
+import adql.query.WithItem;
 import adql.query.constraint.ADQLConstraint;
 import adql.query.constraint.Between;
 import adql.query.constraint.Comparison;
@@ -59,10 +64,13 @@ import adql.query.operand.Operation;
 import adql.query.operand.StringConstant;
 import adql.query.operand.WrappedOperand;
 import adql.query.operand.function.ADQLFunction;
+import adql.query.operand.function.InUnitFunction;
 import adql.query.operand.function.MathFunction;
 import adql.query.operand.function.SQLFunction;
 import adql.query.operand.function.SQLFunctionType;
 import adql.query.operand.function.UserDefinedFunction;
+import adql.query.operand.function.cast.CastFunction;
+import adql.query.operand.function.conditional.CoalesceFunction;
 import adql.query.operand.function.geometry.AreaFunction;
 import adql.query.operand.function.geometry.BoxFunction;
 import adql.query.operand.function.geometry.CentroidFunction;
@@ -77,6 +85,8 @@ import adql.query.operand.function.geometry.IntersectsFunction;
 import adql.query.operand.function.geometry.PointFunction;
 import adql.query.operand.function.geometry.PolygonFunction;
 import adql.query.operand.function.geometry.RegionFunction;
+import adql.query.operand.function.string.LowerFunction;
+import adql.query.operand.function.string.UpperFunction;
 
 /**
  * Implementation of {@link ADQLTranslator} which translates ADQL queries in
@@ -89,7 +99,7 @@ import adql.query.operand.function.geometry.RegionFunction;
  * 	{@link MySQLTranslator} and {@link SQLServerTranslator} are doing.
  * </p>
  *
- * <p><i>Note:
+ * <p><i><b>Note:</b>
  * 	Its default implementation of the SQL syntax has been inspired by the
  * 	PostgreSQL one. However, it should work also with other DBMS, although some
  * 	translations might be needed (as it is has been done for PostgreSQL about
@@ -147,8 +157,8 @@ import adql.query.operand.function.geometry.RegionFunction;
  * 	translating differently: LOG, LOG10, RAND and TRUNC.
  * </p>
  *
- * <p><i>Note:
- * 	Geometrical regions and types have not been managed here. They stay abstract
+ * <p><i><b>Note:</b>
+ * 	Geometric regions and types have not been managed here. They stay abstract
  * 	because it is obviously impossible to have a generic translation and
  * 	conversion ; it totally depends from the database system.
  * </i></p>
@@ -162,7 +172,7 @@ import adql.query.operand.function.geometry.RegionFunction;
  * </p>
  *
  * @author Gr&eacute;gory Mantelet (ARI;CDS)
- * @version 1.5 (03/2019)
+ * @version 2.0 (01/2023)
  * @since 1.4
  *
  * @see PostgreSQLTranslator
@@ -203,7 +213,7 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 	 * @return	The qualified (with DB catalog name prefix if any, and with double quotes if needed) DB schema name,
 	 *        	or an empty string if there is no schema or no DB name.
 	 */
-	public String getQualifiedSchemaName(final DBTable table){
+	public String getQualifiedSchemaName(final DBTable table) {
 		if (table == null || table.getDBSchemaName() == null)
 			return "";
 
@@ -232,7 +242,7 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 	 *
 	 * @see #getTableName(DBTable, boolean)
 	 */
-	public String getQualifiedTableName(final DBTable table){
+	public String getQualifiedTableName(final DBTable table) {
 		return getTableName(table, true);
 	}
 
@@ -253,12 +263,12 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 	 *
 	 * @since 2.0
 	 */
-	public String getTableName(final DBTable table, final boolean withSchema){
+	public String getTableName(final DBTable table, final boolean withSchema) {
 		if (table == null)
 			return "";
 
 		StringBuffer buf = new StringBuffer();
-		if (withSchema){
+		if (withSchema) {
 			buf.append(getQualifiedSchemaName(table));
 			if (buf.length() > 0)
 				buf.append('.');
@@ -286,7 +296,7 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 	 * @return	The DB column name (with double quotes if needed),
 	 *        	or an empty string if the given column is NULL.
 	 */
-	public String getColumnName(final DBColumn column){
+	public String getColumnName(final DBColumn column) {
 		return (column == null) ? "" : appendIdentifier(new StringBuffer(), column.getDBName(), IdentifierField.COLUMN).toString();
 	}
 
@@ -312,7 +322,7 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 	 *
 	 * @see #appendIdentifier(StringBuffer, String, boolean)
 	 */
-	public final StringBuffer appendIdentifier(final StringBuffer str, final String id, final IdentifierField field){
+	public final StringBuffer appendIdentifier(final StringBuffer str, final String id, final IdentifierField field) {
 		return appendIdentifier(str, id, isCaseSensitive(field));
 	}
 
@@ -325,16 +335,16 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 	 *
 	 * @return					The string buffer + identifier.
 	 */
-	public StringBuffer appendIdentifier(final StringBuffer str, final String id, final boolean caseSensitive){
-		if (caseSensitive && !id.matches("\"[^\"]*\""))
-			return str.append('"').append(id).append('"');
+	public StringBuffer appendIdentifier(final StringBuffer str, final String id, final boolean caseSensitive) {
+		if (caseSensitive && !DBIdentifier.isDelimited(id))
+			return str.append(DBIdentifier.denormalize(id, true));
 		else
 			return str.append(id);
 	}
 
 	@Override
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public String translate(ADQLObject obj) throws TranslationException{
+	public String translate(ADQLObject obj) throws TranslationException {
 		if (obj instanceof ADQLQuery)
 			return translate((ADQLQuery)obj);
 		else if (obj instanceof ADQLList)
@@ -351,13 +361,30 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 			return translate((ADQLOperand)obj);
 		else if (obj instanceof ADQLConstraint)
 			return translate((ADQLConstraint)obj);
+		else if (obj instanceof WithItem)
+			return translate((WithItem)obj);
 		else
 			return obj.toADQL();
 	}
 
 	@Override
-	public String translate(ADQLQuery query) throws TranslationException{
-		StringBuffer sql = new StringBuffer(translate(query.getSelect()));
+	public String translate(ADQLSet set) throws TranslationException {
+		if (set instanceof ADQLQuery)
+			return translate((ADQLQuery)set);
+		else if (set instanceof SetOperation)
+			return translate((SetOperation)set);
+		else
+			return set.toADQL();
+	}
+
+	@Override
+	public String translate(ADQLQuery query) throws TranslationException {
+		StringBuffer sql = new StringBuffer();
+
+		if (!query.getWith().isEmpty())
+			sql.append(translate(query.getWith())).append('\n');
+
+		sql.append(translate(query.getSelect()));
 
 		sql.append("\nFROM ").append(translate(query.getFrom()));
 
@@ -373,8 +400,47 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 		if (!query.getOrderBy().isEmpty())
 			sql.append('\n').append(translate(query.getOrderBy()));
 
-		if (query.getSelect().hasLimit())
-			sql.append("\nLimit ").append(query.getSelect().getLimit());
+		if (query.hasLimit())
+			sql.append("\nLIMIT ").append(query.getLimit());
+
+		if (query.getOffset() != null)
+			sql.append("\nOFFSET ").append(query.getOffset().getValue());
+
+		return sql.toString();
+	}
+
+	@Override
+	public String translate(SetOperation set) throws TranslationException {
+		StringBuffer sql = new StringBuffer();
+
+		if (!set.getWith().isEmpty())
+			sql.append(translate(set.getWith())).append('\n');
+
+		boolean extendedSetExp = (set.getLeftSet() instanceof SetOperation || set.getLeftSet().hasLimit() || !set.getLeftSet().getWith().isEmpty() || !set.getLeftSet().getOrderBy().isEmpty() || set.getLeftSet().getOffset() != null);
+		if (extendedSetExp)
+			sql.append('(');
+		sql.append(translate(set.getLeftSet()));
+		if (extendedSetExp)
+			sql.append(')');
+		sql.append('\n');
+
+		sql.append(set.getOperation());
+		if (set.isWithDuplicates())
+			sql.append(" ALL");
+		sql.append('\n');
+
+		extendedSetExp = (set.getRightSet() instanceof SetOperation || set.getRightSet().hasLimit() || !set.getRightSet().getWith().isEmpty() || !set.getRightSet().getOrderBy().isEmpty() || set.getRightSet().getOffset() != null);
+		if (extendedSetExp)
+			sql.append('(');
+		sql.append(translate(set.getRightSet()));
+		if (extendedSetExp)
+			sql.append(')');
+
+		if (!set.getOrderBy().isEmpty())
+			sql.append('\n').append(translate(set.getOrderBy()));
+
+		if (set.getOffset() != null)
+			sql.append("\nOFFSET ").append(set.getOffset().getValue());
 
 		return sql.toString();
 	}
@@ -383,7 +449,7 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 	/* ****** LIST & CLAUSE ****** */
 	/* *************************** */
 	@Override
-	public String translate(ADQLList<? extends ADQLObject> list) throws TranslationException{
+	public String translate(ADQLList<? extends ADQLObject> list) throws TranslationException {
 		if (list instanceof ClauseSelect)
 			return translate((ClauseSelect)list);
 		else if (list instanceof ClauseConstraints)
@@ -412,7 +478,7 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 	 *
 	 * @see #getDefaultADQLList(ADQLList, boolean)
 	 */
-	protected final String getDefaultADQLList(ADQLList<? extends ADQLObject> list) throws TranslationException{
+	protected final String getDefaultADQLList(ADQLList<? extends ADQLObject> list) throws TranslationException {
 		return getDefaultADQLList(list, true);
 	}
 
@@ -429,7 +495,7 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 	 *
 	 * @since 1.4
 	 */
-	protected String getDefaultADQLList(ADQLList<? extends ADQLObject> list, final boolean withNamePrefix) throws TranslationException{
+	protected String getDefaultADQLList(ADQLList<? extends ADQLObject> list, final boolean withNamePrefix) throws TranslationException {
 		String sql = (list.getName() == null || !withNamePrefix) ? "" : (list.getName() + " ");
 
 		for(int i = 0; i < list.size(); i++)
@@ -439,13 +505,18 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 	}
 
 	@Override
-	public String translate(ClauseSelect clause) throws TranslationException{
+	public String translate(final ClauseADQL<WithItem> clause) throws TranslationException {
+		return getDefaultADQLList(clause);
+	}
+
+	@Override
+	public String translate(ClauseSelect clause) throws TranslationException {
 		String sql = null;
 
-		for(int i = 0; i < clause.size(); i++){
-			if (i == 0){
+		for(int i = 0; i < clause.size(); i++) {
+			if (i == 0) {
 				sql = clause.getName() + (clause.distinctColumns() ? " DISTINCT" : "");
-			}else
+			} else
 				sql += " " + clause.getSeparator(i);
 
 			sql += " " + translate(clause.get(i));
@@ -455,7 +526,7 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 	}
 
 	@Override
-	public String translate(ClauseConstraints clause) throws TranslationException{
+	public String translate(ClauseConstraints clause) throws TranslationException {
 		if (clause instanceof ConstraintsGroup)
 			return "(" + getDefaultADQLList(clause) + ")";
 		else
@@ -463,18 +534,31 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 	}
 
 	@Override
-	public String translate(SelectItem item) throws TranslationException{
+	public String translate(final WithItem item) throws TranslationException {
+		StringBuffer translation = new StringBuffer();
+
+		// query name/label:
+		if (item.getDBLink() != null)
+			appendIdentifier(translation, (item.getDBLink().isCaseSensitive() ? item.getDBLink().getDBName() : item.getDBLink().getDBName().toLowerCase()), true);
+		else
+			appendIdentifier(translation, (item.isLabelCaseSensitive() ? item.getLabel() : item.getLabel().toLowerCase()), true);
+
+		// query itself:
+		translation.append(" AS (\n").append(translate(item.getQuery())).append("\n)");
+
+		return translation.toString();
+	}
+
+	@Override
+	public String translate(SelectItem item) throws TranslationException {
 		if (item instanceof SelectAllColumns)
 			return translate((SelectAllColumns)item);
 
 		StringBuffer translation = new StringBuffer(translate(item.getOperand()));
-		if (item.hasAlias()){
+		if (item.hasAlias()) {
 			translation.append(" AS ");
-			if (item.isCaseSensitive())
-				appendIdentifier(translation, item.getAlias(), true);
-			else
-				appendIdentifier(translation, item.getAlias().toLowerCase(), true);
-		}else{
+			appendIdentifier(translation, (item.isCaseSensitive() ? item.getAlias() : item.getAlias().toLowerCase()), true);
+		} else {
 			translation.append(" AS ");
 			appendIdentifier(translation, item.getName(), true);
 		}
@@ -483,47 +567,45 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 	}
 
 	@Override
-	public String translate(SelectAllColumns item) throws TranslationException{
+	public String translate(SelectAllColumns item) throws TranslationException {
 		// Fetch the full list of columns to display:
 		Iterable<DBColumn> dbCols = null;
-		if (item.getAdqlTable() != null && item.getAdqlTable().getDBLink() != null){
+		if (item.getAdqlTable() != null && item.getAdqlTable().getDBLink() != null) {
 			ADQLTable table = item.getAdqlTable();
 			dbCols = table.getDBLink();
-		}else if (item.getQuery() != null){
-			try{
+		} else if (item.getQuery() != null) {
+			try {
 				dbCols = item.getQuery().getFrom().getDBColumns();
-			}catch(UnresolvedJoinException pe){
+			} catch(UnresolvedJoinException pe) {
 				throw new TranslationException("Due to a join problem, the ADQL to SQL translation can not be completed!", pe);
 			}
 		}
 
 		// Write the DB name of all these columns:
-		if (dbCols != null){
+		if (dbCols != null) {
 			StringBuffer cols = new StringBuffer();
-			for(DBColumn col : dbCols){
+			for(DBColumn col : dbCols) {
 				if (cols.length() > 0)
-					cols.append(',');
-				if (col.getTable() != null){
+					cols.append(" , ");
+				if (col.getTable() != null) {
 					if (col.getTable() instanceof DBTableAlias)
 						cols.append(getTableName(col.getTable(), false)).append('.');
 					else
 						cols.append(getQualifiedTableName(col.getTable())).append('.');
 				}
 				appendIdentifier(cols, col.getDBName(), IdentifierField.COLUMN);
-				cols.append(" AS \"").append(col.getADQLName()).append('\"');
+				cols.append(" AS ");
+				appendIdentifier(cols, (col.isCaseSensitive() ? col.getADQLName() : col.getADQLName().toLowerCase()), true);
 			}
 			return (cols.length() > 0) ? cols.toString() : item.toADQL();
-		}else{
+		} else {
 			return item.toADQL();
 		}
 	}
 
 	@Override
-	public String translate(ColumnReference ref) throws TranslationException{
-		if (ref instanceof ADQLOrder)
-			return translate((ADQLOrder)ref);
-		else
-			return getDefaultColumnReference(ref);
+	public String translate(ColumnReference ref) throws TranslationException {
+		return getDefaultColumnReference(ref);
 	}
 
 	/**
@@ -535,43 +617,23 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 	 *
 	 * @throws TranslationException If there is an error during the translation.
 	 */
-	protected String getDefaultColumnReference(ColumnReference ref) throws TranslationException{
-		if (ref.isIndex()){
-			return "" + ref.getColumnIndex();
-		}else{
-			if (ref.getDBLink() == null){
-				return (ref.isCaseSensitive() ? ("\"" + ref.getColumnName() + "\"") : ref.getColumnName());
-			}else{
-				DBColumn dbCol = ref.getDBLink();
-				StringBuffer colName = new StringBuffer();
-				// Use the table alias if any:
-				if (ref.getAdqlTable() != null && ref.getAdqlTable().hasAlias()){
-					if (ref.getAdqlTable().isCaseSensitive(IdentifierField.ALIAS))
-						appendIdentifier(colName, ref.getAdqlTable().getAlias(), true).append('.');
-					else
-						appendIdentifier(colName, ref.getAdqlTable().getAlias().toLowerCase(), true).append('.');
-				}
-				// Use the DBTable if any:
-				else if (dbCol.getTable() != null)
-					colName.append(getQualifiedTableName(dbCol.getTable())).append('.');
-
-				appendIdentifier(colName, dbCol.getDBName(), IdentifierField.COLUMN);
-
-				return colName.toString();
-			}
-		}
+	protected String getDefaultColumnReference(ColumnReference ref) throws TranslationException {
+		return "" + ref.getColumnIndex();
 	}
 
 	@Override
-	public String translate(ADQLOrder order) throws TranslationException{
-		return getDefaultColumnReference(order) + (order.isDescSorting() ? " DESC" : " ASC");
+	public String translate(ADQLOrder order) throws TranslationException {
+		if (order.getColumnReference() != null)
+			return translate(order.getColumnReference()) + (order.isDescSorting() ? " DESC" : " ASC");
+		else
+			return translate(order.getExpression()) + (order.isDescSorting() ? " DESC" : " ASC");
 	}
 
 	/* ************************** */
 	/* ****** TABLE & JOIN ****** */
 	/* ************************** */
 	@Override
-	public String translate(FromContent content) throws TranslationException{
+	public String translate(FromContent content) throws TranslationException {
 		if (content instanceof ADQLTable)
 			return translate((ADQLTable)content);
 		else if (content instanceof ADQLJoin)
@@ -581,7 +643,7 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 	}
 
 	@Override
-	public String translate(ADQLTable table) throws TranslationException{
+	public String translate(ADQLTable table) throws TranslationException {
 		StringBuffer sql = new StringBuffer();
 
 		// CASE: SUB-QUERY:
@@ -589,9 +651,9 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 			sql.append('(').append(translate(table.getSubQuery())).append(')');
 
 		// CASE: TABLE REFERENCE:
-		else{
+		else {
 			// Use the corresponding DB table, if known:
-			if (table.getDBLink() != null){
+			if (table.getDBLink() != null) {
 				/* Note: if the table is aliased, the aliased table is wrapped
 				 *       inside a DBTableAlias. So, to get the real table name
 				 *       we should get first the original table thanks to
@@ -607,28 +669,31 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 		}
 
 		// Add the table alias, if any:
-		if (table.hasAlias()){
+		if (table.hasAlias()) {
 			sql.append(" AS ");
 			/* In case where metadata are known, the alias must always be
 			 * written case sensitively in order to ensure a translation
 			 * stability (i.e. all references clearly point toward this alias
-			 * whatever is their character case). */
-			if (table.getDBLink() != null){
-				if (table.isCaseSensitive(IdentifierField.ALIAS))
-					appendIdentifier(sql, table.getAlias(), true);
+			 * whatever is their character case). *
+			if (table.getDBLink() != null) {
+				if (table.getDBLink().isCaseSensitive())
+					appendIdentifier(sql, table.getAlias(), IdentifierField.TABLE);
 				else
-					appendIdentifier(sql, table.getAlias().toLowerCase(), true);
+					appendIdentifier(sql, table.getAlias().toLowerCase(), IdentifierField.TABLE);
 			}
-			/* Otherwise, just write what is written in ADQL: */
+			/* Otherwise, just write what is written in ADQL: *
+			else*/
+			if (table.getDBLink() != null)
+				appendIdentifier(sql, (table.getDBLink().isCaseSensitive() ? table.getDBLink().getDBName() : table.getDBLink().getDBName().toLowerCase()), true);
 			else
-				appendIdentifier(sql, table.getAlias(), table.isCaseSensitive(IdentifierField.ALIAS));
+				appendIdentifier(sql, (table.isCaseSensitive(IdentifierField.ALIAS) ? table.getAlias() : table.getAlias().toLowerCase()), true);
 		}
 
 		return sql.toString();
 	}
 
 	@Override
-	public String translate(ADQLJoin join) throws TranslationException{
+	public String translate(ADQLJoin join) throws TranslationException {
 		StringBuffer sql = new StringBuffer(translate(join.getLeftTable()));
 
 		if (join.isNatural())
@@ -636,13 +701,13 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 
 		sql.append(' ').append(join.getJoinType()).append(' ').append(translate(join.getRightTable())).append(' ');
 
-		if (!join.isNatural()){
+		if (!join.isNatural()) {
 			if (join.getJoinCondition() != null)
 				sql.append(translate(join.getJoinCondition()));
-			else if (join.hasJoinedColumns()){
+			else if (join.hasJoinedColumns()) {
 				StringBuffer cols = new StringBuffer();
 				Iterator<ADQLColumn> it = join.getJoinedColumns();
-				while(it.hasNext()){
+				while(it.hasNext()) {
 					ADQLColumn item = it.next();
 					if (cols.length() > 0)
 						cols.append(", ");
@@ -662,7 +727,7 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 	/* ****** OPERAND ****** */
 	/* ********************* */
 	@Override
-	public String translate(ADQLOperand op) throws TranslationException{
+	public String translate(ADQLOperand op) throws TranslationException {
 		if (op instanceof ADQLColumn)
 			return translate((ADQLColumn)op);
 		else if (op instanceof Concatenation)
@@ -684,21 +749,15 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 	}
 
 	@Override
-	public String translate(ADQLColumn column) throws TranslationException{
+	public String translate(ADQLColumn column) throws TranslationException {
 		// Use its DB name if known:
-		if (column.getDBLink() != null){
+		if (column.getDBLink() != null) {
 			DBColumn dbCol = column.getDBLink();
 			StringBuffer colName = new StringBuffer();
 
 			// Use the DBTable if any:
-			if (dbCol.getTable() != null && dbCol.getTable().getDBName() != null){
-				/* Note: if the table is aliased, ensure no schema is prefixing
-				 *       this alias thanks to getTableName(..., false). */
-				if (dbCol.getTable() instanceof DBTableAlias)
-					colName.append(getTableName(dbCol.getTable(), false)).append('.');
-				else
-					colName.append(getQualifiedTableName(dbCol.getTable())).append('.');
-			}
+			if (dbCol.getTable() != null && dbCol.getTable().getDBName() != null)
+				colName.append(getQualifiedTableName(dbCol.getTable())).append('.');
 
 			// Otherwise, use the prefix of the column given in the ADQL query:
 			else if (column.getTableName() != null)
@@ -714,40 +773,55 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 	}
 
 	@Override
-	public String translate(Concatenation concat) throws TranslationException{
+	public String translate(Concatenation concat) throws TranslationException {
 		return translate((ADQLList<ADQLOperand>)concat);
 	}
 
 	@Override
-	public String translate(NegativeOperand negOp) throws TranslationException{
+	public String translate(NegativeOperand negOp) throws TranslationException {
 		return "-" + translate(negOp.getOperand());
 	}
 
 	@Override
-	public String translate(NumericConstant numConst) throws TranslationException{
-		return numConst.getValue();
+	public String translate(NumericConstant numConst) throws TranslationException {
+		if (numConst.isHexadecimal()) {
+			try {
+
+				int nbDigits = numConst.getValue().length() - 2;
+				/*if (nbDigits <= 4) // SMALLINT
+					return "" + ((short)Integer.parseUnsignedInt(numConst.getValue().substring(2), 16));
+				else*/
+				if (nbDigits <= 8) // INTEGER
+					return "" + Integer.parseUnsignedInt(numConst.getValue().substring(2), 16);
+				else // BIGINT
+					return "" + Long.parseUnsignedLong(numConst.getValue().substring(2), 16);
+			} catch(NumberFormatException nfe) {
+				throw new TranslationException("Impossible to evaluate the given hexadecimal expression: \"" + numConst.getValue() + "\"!", nfe);
+			}
+		} else
+			return numConst.getValue();
 	}
 
 	@Override
-	public String translate(StringConstant strConst) throws TranslationException{
+	public String translate(StringConstant strConst) throws TranslationException {
 		return "'" + strConst.getValue().replaceAll("'", "''") + "'";
 	}
 
 	@Override
-	public String translate(WrappedOperand op) throws TranslationException{
+	public String translate(WrappedOperand op) throws TranslationException {
 		return "(" + translate(op.getOperand()) + ")";
 	}
 
 	@Override
-	public String translate(Operation op) throws TranslationException{
-		return translate(op.getLeftOperand()) + op.getOperation().toADQL() + translate(op.getRightOperand());
+	public String translate(Operation op) throws TranslationException {
+		return "(" + translate(op.getLeftOperand()) + op.getOperation().toADQL() + translate(op.getRightOperand()) + ")";
 	}
 
 	/* ************************ */
 	/* ****** CONSTRAINT ****** */
 	/* ************************ */
 	@Override
-	public String translate(ADQLConstraint cons) throws TranslationException{
+	public String translate(ADQLConstraint cons) throws TranslationException {
 		if (cons instanceof Comparison)
 			return translate((Comparison)cons);
 		else if (cons instanceof Between)
@@ -765,32 +839,32 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 	}
 
 	@Override
-	public String translate(Comparison comp) throws TranslationException{
+	public String translate(Comparison comp) throws TranslationException {
 		return translate(comp.getLeftOperand()) + " " + comp.getOperator().toADQL() + " " + translate(comp.getRightOperand());
 	}
 
 	@Override
-	public String translate(Between comp) throws TranslationException{
+	public String translate(Between comp) throws TranslationException {
 		return translate(comp.getLeftOperand()) + " " + comp.getName() + " " + translate(comp.getMinOperand()) + " AND " + translate(comp.getMaxOperand());
 	}
 
 	@Override
-	public String translate(Exists exists) throws TranslationException{
+	public String translate(Exists exists) throws TranslationException {
 		return "EXISTS(" + translate(exists.getSubQuery()) + ")";
 	}
 
 	@Override
-	public String translate(In in) throws TranslationException{
+	public String translate(In in) throws TranslationException {
 		return translate(in.getOperand()) + " " + in.getName() + " (" + (in.hasSubQuery() ? translate(in.getSubQuery()) : translate(in.getValuesList())) + ")";
 	}
 
 	@Override
-	public String translate(IsNull isNull) throws TranslationException{
+	public String translate(IsNull isNull) throws TranslationException {
 		return translate(isNull.getColumn()) + " " + isNull.getName();
 	}
 
 	@Override
-	public String translate(NotConstraint notCons) throws TranslationException{
+	public String translate(NotConstraint notCons) throws TranslationException {
 		return "NOT " + translate(notCons.getConstraint());
 	}
 
@@ -798,7 +872,7 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 	/* ****** FUNCTIONS ****** */
 	/* *********************** */
 	@Override
-	public String translate(ADQLFunction fct) throws TranslationException{
+	public String translate(ADQLFunction fct) throws TranslationException {
 		if (fct instanceof GeometryFunction)
 			return translate((GeometryFunction)fct);
 		else if (fct instanceof MathFunction)
@@ -807,6 +881,14 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 			return translate((SQLFunction)fct);
 		else if (fct instanceof UserDefinedFunction)
 			return translate((UserDefinedFunction)fct);
+		else if (fct instanceof LowerFunction)
+			return translate((LowerFunction)fct);
+		else if (fct instanceof UpperFunction)
+			return translate((UpperFunction)fct);
+		else if (fct instanceof InUnitFunction)
+			return translate((InUnitFunction)fct);
+		else if (fct instanceof CastFunction)
+			return translate((CastFunction)fct);
 		else
 			return getDefaultADQLFunction(fct);
 	}
@@ -820,17 +902,22 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 	 *
 	 * @throws TranslationException	If there is an error during the translation.
 	 */
-	protected final String getDefaultADQLFunction(ADQLFunction fct) throws TranslationException{
-		String sql = fct.getName() + "(";
+	public final String getDefaultADQLFunction(ADQLFunction fct) throws TranslationException {
+		StringBuilder sql = new StringBuilder(fct.getName());
+		sql.append('(');
 
-		for(int i = 0; i < fct.getNbParameters(); i++)
-			sql += ((i == 0) ? "" : ", ") + translate(fct.getParameter(i));
+		for(int i = 0; i < fct.getNbParameters(); i++) {
+			if (i > 0)
+				sql.append(',').append(' ');
+			sql.append(translate(fct.getParameter(i)));
+		}
 
-		return sql + ")";
+		sql.append(')');
+		return sql.toString();
 	}
 
 	@Override
-	public String translate(SQLFunction fct) throws TranslationException{
+	public String translate(SQLFunction fct) throws TranslationException {
 		if (fct.getType() == SQLFunctionType.COUNT_ALL)
 			return "COUNT(" + (fct.isDistinct() ? "DISTINCT " : "") + "*)";
 		else
@@ -838,20 +925,82 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 	}
 
 	@Override
-	public String translate(MathFunction fct) throws TranslationException{
+	public String translate(MathFunction fct) throws TranslationException {
 		return getDefaultADQLFunction(fct);
 	}
 
 	@Override
-	public String translate(UserDefinedFunction fct) throws TranslationException{
-		return fct.translate(this);
+	public String translate(UserDefinedFunction fct) throws TranslationException {
+		String tr = fct.translate(this);
+		if (tr == null)
+			return getDefaultADQLFunction(fct);
+		else
+			return tr;
+	}
+
+	@Override
+	public String translate(LowerFunction fct) throws TranslationException {
+		return getDefaultADQLFunction(fct);
+	}
+
+	@Override
+	public String translate(UpperFunction fct) throws TranslationException {
+		return getDefaultADQLFunction(fct);
+	}
+
+	/**
+	 * Default translation for the given CAST function.
+	 *
+	 * <p>
+	 * 	It basically writes the same as in ADQL, except for the target datatype
+	 * 	which is written, as much as possible, in SQL.
+	 * </p>
+	 *
+	 * @param fct	The CAST function to translate.
+	 *
+	 * @return	The corresponding translation.
+	 *
+	 * @throws TranslationException	If any error occurred during translation.
+	 */
+	public final String getDefaultCastFunction(final CastFunction fct) throws TranslationException {
+		StringBuilder sql = new StringBuilder(fct.getName());
+
+		sql.append('(');
+		sql.append(fct.getValue() == null ? "NULL" : translate(fct.getValue()));
+		sql.append(" AS ");
+
+		// if the returned type is known, translate it:
+		final DBType returnType = fct.getTargetType().getReturnType();
+		if (returnType != null)
+			sql.append(convertTypeToDB(returnType));
+		// but if not known, use the ADQL version:
+		else
+			sql.append(fct.getTargetType().toADQL());
+
+		sql.append(')');
+		return sql.toString();
+	}
+
+	@Override
+	public String translate(CastFunction fct) throws TranslationException {
+		// If a translator is defined, just use it:
+		if (fct.getFunctionTranslator() != null)
+			return fct.getFunctionTranslator().translate(fct, this);
+		// Otherwise, apply a default translation:
+		else
+			return getDefaultCastFunction(fct);
+	}
+
+	@Override
+	public String translate(CoalesceFunction fct) throws TranslationException{
+		return getDefaultADQLFunction(fct);
 	}
 
 	/* *********************************** */
 	/* ****** GEOMETRICAL FUNCTIONS ****** */
 	/* *********************************** */
 	@Override
-	public String translate(GeometryFunction fct) throws TranslationException{
+	public String translate(GeometryFunction fct) throws TranslationException {
 		if (fct instanceof AreaFunction)
 			return translate((AreaFunction)fct);
 		else if (fct instanceof BoxFunction)
@@ -881,7 +1030,38 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 	}
 
 	@Override
-	public String translate(GeometryValue<? extends GeometryFunction> geomValue) throws TranslationException{
+	public String translate(final RegionFunction fct) throws TranslationException {
+		// If any region...
+		if (fct != null && fct.getParameter(0) != null) {
+			// ...no extended expression and with a string literal:
+			if (!fct.isExtendedRegionExpression() && fct.getParameter(0) instanceof StringConstant) {
+
+				// Get this string:
+				String regionStr = ((StringConstant)fct.getParameter(0)).getValue();
+
+				try {
+					// Parse it as any supported serialization (e.g. DALI, STC/s):
+					Region region = Region.parse(regionStr);
+
+					/* And finally translate it as it was built with the
+					 * appropriate geometry constructor (e.g. POINT(...)): */
+					return translate(region.toGeometry());
+
+				} catch(ParseException pe) {
+					throw new TranslationException("Unsupported region serialization!", pe);
+				}
+			}
+			// Otherwise, translate it as in ADQL:
+			else
+				return getDefaultADQLFunction(fct);
+		}
+		// But if no REGION or parameter, error!
+		else
+			throw new TranslationException("Missing REGION function (or its parameter) to translate!");
+	}
+
+	@Override
+	public String translate(GeometryValue<? extends GeometryFunction> geomValue) throws TranslationException {
 		return translate(geomValue.getValue());
 	}
 

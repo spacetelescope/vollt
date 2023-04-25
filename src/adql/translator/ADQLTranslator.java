@@ -2,33 +2,38 @@ package adql.translator;
 
 /*
  * This file is part of ADQLLibrary.
- * 
+ *
  * ADQLLibrary is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * ADQLLibrary is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public License
  * along with ADQLLibrary.  If not, see <http://www.gnu.org/licenses/>.
- * 
- * Copyright 2012,2014 - UDS/Centre de Données astronomiques de Strasbourg (CDS),
+ *
+ * Copyright 2012-2022 - UDS/Centre de Données astronomiques de Strasbourg (CDS),
  *                       Astronomisches Rechen Institut (ARI)
  */
 
+import adql.parser.feature.FeatureSet;
 import adql.query.ADQLList;
 import adql.query.ADQLObject;
 import adql.query.ADQLOrder;
 import adql.query.ADQLQuery;
+import adql.query.ADQLSet;
+import adql.query.ClauseADQL;
 import adql.query.ClauseConstraints;
 import adql.query.ClauseSelect;
 import adql.query.ColumnReference;
 import adql.query.SelectAllColumns;
 import adql.query.SelectItem;
+import adql.query.SetOperation;
+import adql.query.WithItem;
 import adql.query.constraint.ADQLConstraint;
 import adql.query.constraint.Between;
 import adql.query.constraint.Comparison;
@@ -48,9 +53,12 @@ import adql.query.operand.Operation;
 import adql.query.operand.StringConstant;
 import adql.query.operand.WrappedOperand;
 import adql.query.operand.function.ADQLFunction;
+import adql.query.operand.function.InUnitFunction;
 import adql.query.operand.function.MathFunction;
 import adql.query.operand.function.SQLFunction;
 import adql.query.operand.function.UserDefinedFunction;
+import adql.query.operand.function.cast.CastFunction;
+import adql.query.operand.function.conditional.CoalesceFunction;
 import adql.query.operand.function.geometry.AreaFunction;
 import adql.query.operand.function.geometry.BoxFunction;
 import adql.query.operand.function.geometry.CentroidFunction;
@@ -65,27 +73,58 @@ import adql.query.operand.function.geometry.IntersectsFunction;
 import adql.query.operand.function.geometry.PointFunction;
 import adql.query.operand.function.geometry.PolygonFunction;
 import adql.query.operand.function.geometry.RegionFunction;
+import adql.query.operand.function.string.LowerFunction;
+import adql.query.operand.function.string.UpperFunction;
 
 /**
  * Translates ADQL objects into any language (i.e. SQL).
- * 
+ *
  * @author Gr&eacute;gory Mantelet (CDS)
- * @version 01/2012
- * 
+ * @version 2.0 (10/2022)
+ *
  * @see PostgreSQLTranslator
  */
 public interface ADQLTranslator {
 
+	/**
+	 * Get all features that are fully supported by this translator.
+	 *
+	 * <p><i><b>Note:</b>
+	 * 	If NULL is returned, the default list of supported features should be
+	 * 	used instead. This default list depends on the ADQL version and
+	 * 	is set in an {@link adql.parser.ADQLParser ADQLParser} instance when no
+	 * 	feature set is specified.
+	 * </i></p>
+	 *
+	 * @return	All features supported by this translator.
+	 *
+	 * @since 2.0
+	 */
+	public FeatureSet getSupportedFeatures();
+
 	public String translate(ADQLObject obj) throws TranslationException;
 
+	/* ***** QUERY & SETS ***** */
+	/** @since 2.0 */
+	public String translate(ADQLSet set) throws TranslationException;
+
 	public String translate(ADQLQuery query) throws TranslationException;
+
+	/** @since 2.0 */
+	public String translate(SetOperation setOp) throws TranslationException;
 
 	/* ***** LIST & CLAUSE ***** */
 	public String translate(ADQLList<? extends ADQLObject> list) throws TranslationException;
 
+	/** @since 2.0 */
+	public String translate(ClauseADQL<WithItem> clause) throws TranslationException;
+
 	public String translate(ClauseSelect clause) throws TranslationException;
 
 	public String translate(ClauseConstraints clause) throws TranslationException;
+
+	/** @since 2.0 */
+	public String translate(WithItem item) throws TranslationException;
 
 	public String translate(SelectItem item) throws TranslationException;
 
@@ -143,6 +182,21 @@ public interface ADQLTranslator {
 
 	public String translate(UserDefinedFunction fct) throws TranslationException;
 
+	/** @since 2.0 */
+	public String translate(LowerFunction fct) throws TranslationException;
+
+	/** @since 2.0 */
+	public String translate(UpperFunction fct) throws TranslationException;
+
+	/** @since 2.0 */
+	public String translate(InUnitFunction fct) throws TranslationException;
+
+	/** @since 2.0 */
+	public String translate(CastFunction fct) throws TranslationException;
+
+	/** @since 2.0 */
+	public String translate(CoalesceFunction fct) throws TranslationException;
+
 	/* ***** GEOMETRICAL FUNCTIONS ***** */
 	public String translate(GeometryFunction fct) throws TranslationException;
 
@@ -171,4 +225,5 @@ public interface ADQLTranslator {
 	public String translate(PolygonFunction polygon) throws TranslationException;
 
 	public String translate(RegionFunction region) throws TranslationException;
+
 }

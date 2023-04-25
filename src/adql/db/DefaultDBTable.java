@@ -2,21 +2,21 @@ package adql.db;
 
 /*
  * This file is part of ADQLLibrary.
- * 
+ *
  * ADQLLibrary is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * ADQLLibrary is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public License
  * along with ADQLLibrary.  If not, see <http://www.gnu.org/licenses/>.
- * 
- * Copyright 2012-2015 - UDS/Centre de Données astronomiques de Strasbourg (CDS),
+ *
+ * Copyright 2012-2019 - UDS/Centre de Données astronomiques de Strasbourg (CDS),
  *                       Astronomisches Rechen Institut (ARI)
  */
 
@@ -27,163 +27,213 @@ import java.util.Map;
 
 /**
  * Default implementation of {@link DBTable}.
- * 
+ *
+ * <p><i><b>WARNING: constructors signature and behavior changed since v2.0!</b>
+ * 	Before v2.0, the constructors expected to have the DB names before the ADQL
+ * 	names and thus, they forced to give a DB table name ; the ADQL table name
+ * 	being optional (if not provided it was set to the DB name).
+ * 	But since v2.0, this logic is inverted: the ADQL name is mandatory (a
+ * 	{@link NullPointerException} will be thrown if NULL or empty) while the DB
+ * 	name is optional ({@link #getDBName()} will return the same as
+ * 	{@link #getADQLName()} if no DB name is specified at initialization).
+ * 	Consequently, the ADQL names are expected as first parameters.
+ * </i></p>
+ *
  * @author Gr&eacute;gory Mantelet (CDS;ARI)
- * @version 1.4 (08/2015)
+ * @version 2.0 (09/2019)
  */
-public class DefaultDBTable implements DBTable {
+public class DefaultDBTable extends DBIdentifier implements DBTable {
 
-	protected String dbCatalogName;
-	protected String dbSchemaName;
-	protected String dbName;
+	protected String dbCatalogName = null;
+	protected String dbSchemaName = null;
 
 	protected String adqlCatalogName = null;
 	protected String adqlSchemaName = null;
-	protected String adqlName = null;
 
-	protected Map<String,DBColumn> columns = new LinkedHashMap<String,DBColumn>();
+	protected Map<String, DBColumn> columns = new LinkedHashMap<String, DBColumn>();
 
 	/**
-	 * <p>Builds a default {@link DBTable} with the given DB name.</p>
-	 * 
-	 * <p>With this constructor: ADQL name = DB name.</p>
-	 * 
-	 * <p><i><u>Note:</u> The table name can be prefixed by a schema and a catalog: t1 or schema1.t1 or cat1.schema1.t2</i></p>
-	 * 
-	 * @param dbName	Database name (it will be also used as ADQL table name).
-	 * 
-	 * @see #DefaultDBTable(String, String)
+	 * Builds a default {@link DBTable} with the given <b>ADQL name</b>.
+	 *
+	 * <p>With this constructor: DB name = ADQL name.</p>
+	 *
+	 * <p><i><b>Note:</b>
+	 * 	The ADQL/DB schema and catalog names are set to NULL.
+	 * </i></p>
+	 *
+	 * <p><i><b>WARNING:</b>
+	 * 	The ADQL table name MUST be NON-qualified (i.e. not prefixed by a schema
+	 * 	and/or a catalog)! For instance, <code>t1</code> is ok, but not
+	 * 	<code>schema1.t1</code> or <code>cat1.schema1.t2</code> which won't be
+	 * 	split but instead, considered as the whole ADQL name.
+	 * </i></p>
+	 *
+	 * <p><i><b>Important note:</b>
+	 * 	The ADQL table name can be delimited (i.e. surrounded by double quotes).
+	 * 	In such case, the surrounded name would be considered as case-sensitive.
+	 * </i></p>
+	 *
+	 * @param adqlName	The ADQL name of this table (i.e. name to use in ADQL).
+	 *
+	 * @throws NullPointerException	If the given ADQL name is NULL or empty.
+	 *
+	 * @since 2.0
 	 */
-	public DefaultDBTable(final String dbName){
-		this(dbName, null);
+	public DefaultDBTable(final String adqlName) throws NullPointerException {
+		super(adqlName);
 	}
 
 	/**
-	 * <p>Builds a default {@link DBTable} with the given DB and ADQL names.</p>
-	 * 
-	 * <p><i><u>Note:</u> The table names can be prefixed by a schema and a catalog: t1 or schema1.t1 or cat1.schema1.t2</i></p>
-	 * 
-	 * @param dbName	Database name.
+	 * Builds a default {@link DBTable} with the given ADQL and DB names.
+	 *
+	 * <p><i><b>Note:</b>
+	 * 	The ADQL/DB schema and catalog names are set to NULL.
+	 * </i></p>
+	 *
+	 * <p><i><b>WARNING:</b>
+	 * 	The ADQL table name MUST NOT be qualified (i.e. prefixed by a schema
+	 * 	and/or a catalog)! For instance, <code>t1</code> is ok, but not
+	 * 	<code>schema1.t1</code> or <code>cat1.schema1.t2</code> which won't be
+	 * 	split but instead, considered as the whole ADQL name.
+	 * </i></p>
+	 *
+	 * <p><i><b>Important note:</b>
+	 * 	The ADQL table name can be delimited (i.e. surrounded by double quotes).
+	 * 	In such case, the surrounded name would be considered as case-sensitive.
+	 * </i></p>
+	 *
 	 * @param adqlName	Name used in ADQL queries.
+	 * @param dbName	Database name.
+	 *                	<i>If NULL, {@link #getDBName()} will return the same as
+	 *                	{@link #getADQLName()}.</i>
+	 *
+	 * @throws NullPointerException	If the given ADQL name is NULL or empty.
+	 *
+	 * @since 2.0
 	 */
-	public DefaultDBTable(final String dbName, final String adqlName){
-		// DB names:
-		String[] names = splitTableName(dbName);
-		if (names[2] == null || names[2].length() == 0)
-			throw new NullPointerException("Missing DB name !");
-		else
-			this.dbName = names[2];
-		this.dbSchemaName = names[1];
-		this.dbCatalogName = names[0];
-
-		// ADQL names:
-		names = splitTableName(adqlName);
-		if (names[2] == null || names[2].length() == 0){
-			this.adqlName = this.dbName;
-			this.adqlSchemaName = this.dbSchemaName;
-			this.adqlCatalogName = this.dbCatalogName;
-		}else{
-			this.adqlName = names[2];
-			this.adqlSchemaName = names[1];
-			this.adqlCatalogName = names[0];
-		}
+	public DefaultDBTable(final String adqlName, final String dbName) throws NullPointerException {
+		super(adqlName, dbName);
 	}
 
 	/**
-	 * Builds default {@link DBTable} with a DB catalog, schema and table names.
-	 * 
-	 * @param dbCatName		Database catalog name (it will be also used as ADQL catalog name).
-	 * @param dbSchemName	Database schema name (it will be also used as ADQL schema name).
-	 * @param dbName		Database table name (it will be also used as ADQL table name).
-	 * 
-	 * @see #DefaultDBTable(String, String, String, String, String, String)
+	 * Builds default {@link DBTable} with a ADQL catalog, schema and table
+	 * names.
+	 *
+	 * <p><i><b>WARNING:</b>
+	 * 	The ADQL table name MUST NOT be qualified (i.e. prefixed by a schema
+	 * 	and/or a catalog)! For instance, <code>t1</code> is ok, but not
+	 * 	<code>schema1.t1</code> or <code>cat1.schema1.t2</code> which won't be
+	 * 	split but instead, considered as the whole ADQL name.
+	 * </i></p>
+	 *
+	 * <p><i><b>Important note:</b>
+	 * 	The ADQL table name can be delimited (i.e. surrounded by double quotes).
+	 * 	In such case, the surrounded name would be considered as case-sensitive.
+	 * </i></p>
+	 *
+	 * @param adqlCatName		ADQL catalog name (it will be also used as DB
+	 *                 			catalog name).
+	 * @param adqlSchemaName	ADQL schema name (it will be also used as DB
+	 *                   		schema name).
+	 * @param adqlName			ADQL table name (it will be also used as DB
+	 *              			table name).
+	 *                 			<i>MUST NOT be NULL!</i>
+	 *
+	 * @throws NullPointerException	If the given ADQL name is NULL or empty.
+	 *
+	 * @since 2.0
 	 */
-	public DefaultDBTable(final String dbCatName, final String dbSchemName, final String dbName){
-		this(dbCatName, null, dbSchemName, null, dbName, null);
+	public DefaultDBTable(final String adqlCatName, final String adqlSchemaName, final String adqlName) throws NullPointerException {
+		this(adqlCatName, null, adqlSchemaName, null, adqlName, null);
 	}
 
 	/**
-	 * Builds default {@link DBTable} with the DB and ADQL names for the catalog, schema and table.
-	 * 
-	 * @param dbCatName		Database catalog name.
-	 * @param adqlCatName	Catalog name used in ADQL queries.
-	 *                   	<em>If NULL, it will be set to dbCatName.</em>
-	 * @param dbSchemName	Database schema name.
-	 * @param adqlSchemName	Schema name used in ADQL queries.
-	 *                   	<em>If NULL, it will be set to dbSchemName.</em>
-	 * @param dbName		Database table name.
-	 * @param adqlName		Table name used in ADQL queries.
-	 *                   	<em>If NULL, it will be set to dbName.</em>
+	 * Builds default {@link DBTable} with the ADQL and DB names for the
+	 * catalog, schema and table.
+	 *
+	 * <p><i><b>WARNING:</b>
+	 * 	The ADQL table name MUST NOT be qualified (i.e. prefixed by a schema
+	 * 	and/or a catalog)! For instance, <code>t1</code> is ok, but not
+	 * 	<code>schema1.t1</code> or <code>cat1.schema1.t2</code> which won't be
+	 * 	split but instead, considered as the whole ADQL name.
+	 * </i></p>
+	 *
+	 * <p><i><b>Important note:</b>
+	 * 	The ADQL table name can be delimited (i.e. surrounded by double quotes).
+	 * 	In such case, the surrounded name would be considered as case-sensitive.
+	 * </i></p>
+	 *
+	 * @param adqlCatName		Catalog name used in ADQL queries.
+	 * @param dbCatName			Database catalog name.
+	 *                   		<i>If NULL, it will be set to adqlCatName.</i>
+	 * @param adqlSchemaName	Schema name used in ADQL queries.
+	 * @param dbSchemaName		Database schema name.
+	 *                   		<i>If NULL, it will be set to adqlSchemaName.</i>
+	 * @param adqlName			Table name used in ADQL queries.
+	 *                 			<i>MUST NOT be NULL!</i>
+	 * @param dbName			Database table name.
+	 *                   		<i>If NULL, it will be set to adqlName.</i>
+	 *
+	 * @throws NullPointerException	If the given ADQL name is NULL or empty.
 	 */
-	public DefaultDBTable(final String dbCatName, final String adqlCatName, final String dbSchemName, final String adqlSchemName, final String dbName, final String adqlName){
+	public DefaultDBTable(final String adqlCatName, final String dbCatName, final String adqlSchemaName, final String dbSchemaName, final String adqlName, final String dbName) throws NullPointerException {
+		super(adqlName, dbName);
 
-		if (dbName == null || dbName.length() == 0)
-			throw new NullPointerException("Missing DB name !");
+		setADQLSchemaName(adqlSchemaName);
+		setDBSchemaName(dbSchemaName);
 
-		this.dbName = dbName;
-		this.adqlName = (adqlName == null) ? dbName : adqlName;
-
-		dbSchemaName = dbSchemName;
-		adqlSchemaName = (adqlSchemName == null) ? dbSchemName : adqlSchemName;
-
-		dbCatalogName = dbCatName;
-		adqlCatalogName = (adqlCatName == null) ? dbCatName : adqlCatName;
+		setADQLCatalogName(adqlCatName);
+		setDBCatalogName(dbCatName);
 	}
 
 	@Override
-	public final String getDBName(){
-		return dbName;
+	public final String getDBSchemaName() {
+		return (dbSchemaName == null) ? adqlSchemaName : dbSchemaName;
+	}
+
+	public final void setDBSchemaName(final String name) {
+		dbSchemaName = normalize(name);
 	}
 
 	@Override
-	public final String getDBSchemaName(){
-		return dbSchemaName;
+	public final String getDBCatalogName() {
+		return (dbCatalogName == null) ? adqlCatalogName : dbCatalogName;
+	}
+
+	public final void setDBCatalogName(final String name) {
+		dbCatalogName = normalize(name);
 	}
 
 	@Override
-	public final String getDBCatalogName(){
-		return dbCatalogName;
-	}
-
-	@Override
-	public final String getADQLName(){
-		return adqlName;
-	}
-
-	public void setADQLName(final String name){
-		adqlName = (name != null) ? name : dbName;
-	}
-
-	@Override
-	public final String getADQLSchemaName(){
+	public final String getADQLSchemaName() {
 		return adqlSchemaName;
 	}
 
-	public void setADQLSchemaName(final String name){
-		adqlSchemaName = (name != null) ? name : dbSchemaName;
+	public void setADQLSchemaName(final String name) {
+		adqlSchemaName = normalize(name);
 	}
 
 	@Override
-	public final String getADQLCatalogName(){
+	public final String getADQLCatalogName() {
 		return adqlCatalogName;
 	}
 
-	public void setADQLCatalogName(final String name){
-		adqlName = (name != null) ? null : dbName;
+	public void setADQLCatalogName(final String name) {
+		adqlCatalogName = normalize(dbName);
 	}
 
 	/**
 	 * <p>Case sensitive !</p>
 	 * <p>Research optimized for researches by ADQL name.</p>
-	 * 
+	 *
 	 * @see adql.db.DBTable#getColumn(java.lang.String, boolean)
 	 */
 	@Override
-	public DBColumn getColumn(String colName, boolean byAdqlName){
+	public DBColumn getColumn(String colName, boolean byAdqlName) {
 		if (byAdqlName)
 			return columns.get(colName);
-		else{
-			for(DBColumn col : columns.values()){
+		else {
+			for(DBColumn col : columns.values()) {
 				if (col.getDBName().equals(colName))
 					return col;
 			}
@@ -191,22 +241,22 @@ public class DefaultDBTable implements DBTable {
 		}
 	}
 
-	public boolean hasColumn(String colName, boolean byAdqlName){
+	public boolean hasColumn(String colName, boolean byAdqlName) {
 		return (getColumn(colName, byAdqlName) != null);
 	}
 
 	@Override
-	public Iterator<DBColumn> iterator(){
+	public Iterator<DBColumn> iterator() {
 		return columns.values().iterator();
 	}
 
-	public void addColumn(DBColumn column){
+	public void addColumn(DBColumn column) {
 		if (column != null)
 			columns.put(column.getADQLName(), column);
 	}
 
-	public void addAllColumns(Collection<DBColumn> colList){
-		if (colList != null){
+	public void addAllColumns(Collection<DBColumn> colList) {
+		if (colList != null) {
 			for(DBColumn column : colList)
 				addColumn(column);
 		}
@@ -214,19 +264,23 @@ public class DefaultDBTable implements DBTable {
 
 	/**
 	 * Splits the given table name in 3 parts: catalog, schema, table.
-	 * 
+	 *
 	 * @param table	The table name to split.
-	 * 
+	 *
 	 * @return	A String array of 3 items: [0]=catalog, [1]=schema, [0]=table.
+	 *
+	 * @deprecated	Since v2.0, the table name is not any more split
+	 *            	automatically.
 	 */
-	public static final String[] splitTableName(final String table){
-		String[] splitRes = new String[]{null,null,null};
+	@Deprecated
+	public static final String[] splitTableName(final String table) {
+		String[] splitRes = new String[]{ null, null, null };
 
 		if (table == null || table.trim().length() == 0)
 			return splitRes;
 
 		String[] names = table.trim().split("\\.");
-		switch(names.length){
+		switch(names.length) {
 			case 1:
 				splitRes[2] = table.trim();
 				break;
@@ -254,38 +308,43 @@ public class DefaultDBTable implements DBTable {
 	/**
 	 * <p>Join the last 3 items of the given string array with a dot ('.').
 	 * These three parts should be: [0]=catalog name, [1]=schema name, [2]=table name.</p>
-	 * 
+	 *
 	 * <p>
 	 * 	If the array contains less than 3 items, all the given items will be though joined.
 	 * 	However, if it contains more than 3 items, only the three last items will be.
 	 * </p>
-	 * 
+	 *
 	 * <p>A null item will be written as an empty string (string of length 0 ; "").</p>
-	 * 
+	 *
 	 * <p>
 	 * 	In the case the first and the third items are not null, but the second is null, the final string will contain in the middle two dots.
 	 * 	Example: if the array is {"cat", NULL, "table"}, then the joined string will be: "cat..table".
 	 * </p>
-	 * 
+	 *
 	 * @param nameParts	String items to join.
-	 * 
+	 *
 	 * @return	A string joining the 3 last string items of the given array,
 	 *        	or an empty string if the given array is NULL.
-	 * 
+	 *
 	 * @since 1.3
+	 *
+	 * @deprecated	Since v2.0, the table name is not any more split
+	 *            	automatically. So, it is not any more needed to join all its
+	 *            	parts.
 	 */
-	public static final String joinTableName(final String[] nameParts){
+	@Deprecated
+	public static final String joinTableName(final String[] nameParts) {
 		if (nameParts == null)
 			return "";
 
 		StringBuffer str = new StringBuffer();
 		boolean empty = true;
-		for(int i = (nameParts.length <= 3) ? 0 : (nameParts.length - 3); i < nameParts.length; i++){
+		for(int i = (nameParts.length <= 3) ? 0 : (nameParts.length - 3); i < nameParts.length; i++) {
 			if (!empty)
 				str.append('.');
 
 			String part = (nameParts[i] == null) ? null : nameParts[i].trim();
-			if (part != null && part.length() > 0){
+			if (part != null && part.length() > 0) {
 				str.append(part);
 				empty = false;
 			}
@@ -294,11 +353,10 @@ public class DefaultDBTable implements DBTable {
 	}
 
 	@Override
-	public DBTable copy(String dbName, String adqlName){
-		dbName = (dbName == null) ? joinTableName(new String[]{dbCatalogName,dbSchemaName,this.dbName}) : dbName;
-		adqlName = (adqlName == null) ? joinTableName(new String[]{adqlCatalogName,adqlSchemaName,this.adqlName}) : adqlName;
-		DefaultDBTable copy = new DefaultDBTable(dbName, adqlName);
-		for(DBColumn col : this){
+	public DBTable copy(String dbName, String adqlName) {
+		DefaultDBTable copy = new DefaultDBTable(adqlCatalogName, dbCatalogName, adqlSchemaName, dbSchemaName, adqlName, dbName);
+		copy.setCaseSensitive(this.isCaseSensitive());
+		for(DBColumn col : this) {
 			if (col instanceof DBCommonColumn)
 				copy.addColumn(new DBCommonColumn((DBCommonColumn)col, col.getDBName(), col.getADQLName()));
 			else

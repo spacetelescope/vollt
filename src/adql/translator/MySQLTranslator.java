@@ -1,25 +1,5 @@
 package adql.translator;
 
-import adql.db.DBType;
-import adql.db.DBType.DBDatatype;
-import adql.db.STCS.Region;
-import adql.parser.ParseException;
-import adql.query.IdentifierField;
-import adql.query.operand.ADQLOperand;
-import adql.query.operand.Concatenation;
-import adql.query.operand.function.geometry.AreaFunction;
-import adql.query.operand.function.geometry.BoxFunction;
-import adql.query.operand.function.geometry.CentroidFunction;
-import adql.query.operand.function.geometry.CircleFunction;
-import adql.query.operand.function.geometry.ContainsFunction;
-import adql.query.operand.function.geometry.DistanceFunction;
-import adql.query.operand.function.geometry.ExtractCoord;
-import adql.query.operand.function.geometry.ExtractCoordSys;
-import adql.query.operand.function.geometry.IntersectsFunction;
-import adql.query.operand.function.geometry.PointFunction;
-import adql.query.operand.function.geometry.PolygonFunction;
-import adql.query.operand.function.geometry.RegionFunction;
-
 /*
  * This file is part of ADQLLibrary.
  *
@@ -36,22 +16,60 @@ import adql.query.operand.function.geometry.RegionFunction;
  * You should have received a copy of the GNU Lesser General Public License
  * along with ADQLLibrary.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright 2017-2019 - Astronomisches Rechen Institut (ARI),
+ * Copyright 2017-2023 - Astronomisches Rechen Institut (ARI),
  *                       UDS/Centre de Données astronomiques de Strasbourg (CDS)
  */
+
+
+import adql.db.DBColumn;
+import adql.db.DBIdentifier;
+import adql.db.DBType;
+import adql.db.DBType.DBDatatype;
+import adql.db.region.Region;
+import adql.parser.feature.FeatureSet;
+import adql.parser.feature.LanguageFeature;
+import adql.parser.grammar.ParseException;
+import adql.query.IdentifierField;
+import adql.query.SetOperation;
+import adql.query.SetOperationType;
+import adql.query.constraint.Comparison;
+import adql.query.constraint.ComparisonOperator;
+import adql.query.operand.ADQLOperand;
+import adql.query.operand.Concatenation;
+import adql.query.operand.function.InUnitFunction;
+import adql.query.operand.function.MathFunction;
+import adql.query.operand.function.cast.CastFunction;
+import adql.query.operand.function.geometry.AreaFunction;
+import adql.query.operand.function.geometry.BoxFunction;
+import adql.query.operand.function.geometry.CentroidFunction;
+import adql.query.operand.function.geometry.CircleFunction;
+import adql.query.operand.function.geometry.ContainsFunction;
+import adql.query.operand.function.geometry.DistanceFunction;
+import adql.query.operand.function.geometry.ExtractCoord;
+import adql.query.operand.function.geometry.ExtractCoordSys;
+import adql.query.operand.function.geometry.IntersectsFunction;
+import adql.query.operand.function.geometry.PointFunction;
+import adql.query.operand.function.geometry.PolygonFunction;
 
 /**
  * Translates all ADQL objects into an SQL interrogation query designed for
  * MySQL.
  *
- * <p><i><b>Important</b>:
- * 	The geometrical functions are translated exactly as in ADQL.
+ * <p><i><b>Important note 1:</b>
+ * 	The geometrical functions and IN_UNIT are translated exactly as in ADQL.
  * 	You will probably need to extend this translator to correctly manage the
  * 	geometrical functions.
  * </i></p>
  *
+ * <p><i><b>Important note 2:</b>
+ * 	If new optional features are supported in an extension of this translator,
+ * 	they should be visible in {@link #getSupportedFeatures()}. To customize this
+ * 	list, you must overwrite {@link #initSupportedFeatures()} and update in
+ * 	there the attribute {@link #supportedFeatures}.
+ * </i></p>
+ *
  * @author Gr&eacute;gory Mantelet (ARI;CDS)
- * @version 1.5 (03/2019)
+ * @version 2.0 (02/2023)
  * @since 1.4
  */
 public class MySQLTranslator extends JDBCTranslator {
@@ -71,14 +89,23 @@ public class MySQLTranslator extends JDBCTranslator {
 	 */
 	protected byte caseSensitivity = 0x00;
 
+	/** List of all optional features supported by this translator.
+	 * <p><i><b>Note:</b>
+	 * 	This list can be customized by extending this translator and then
+	 * 	overwriting {@link #initSupportedFeatures()}.
+	 * </i></p>
+	 * @since 2.0 */
+	protected final FeatureSet supportedFeatures = new FeatureSet();
+
 	/**
 	 * Build a MySQLTranslator which always translates in SQL all identifiers
 	 * (schema, table and column) in a case sensitive manner ; in other words,
 	 * schema, table and column names will be surrounded by back-quotes in the
 	 * SQL translation.
 	 */
-	public MySQLTranslator(){
-		caseSensitivity = 0x0F;
+	public MySQLTranslator() {
+		caseSensitivity = (byte)0x0F;
+		initSupportedFeatures();
 	}
 
 	/**
@@ -92,8 +119,9 @@ public class MySQLTranslator extends JDBCTranslator {
 	 *                        	(surrounded by back-quotes),
 	 *                        	<i>false</i> for case insensitivity.
 	 */
-	public MySQLTranslator(final boolean allCaseSensitive){
+	public MySQLTranslator(final boolean allCaseSensitive) {
 		caseSensitivity = allCaseSensitive ? (byte)0x0F : (byte)0x00;
+		initSupportedFeatures();
 	}
 
 	/**
@@ -109,25 +137,175 @@ public class MySQLTranslator extends JDBCTranslator {
 	 * @param column	<i>true</i> to translate column names with back-quotes
 	 *              	(case sensitive in the DBMS), <i>false</i> otherwise.
 	 */
-	public MySQLTranslator(final boolean catalog, final boolean schema, final boolean table, final boolean column){
+	public MySQLTranslator(final boolean catalog, final boolean schema, final boolean table, final boolean column) {
 		caseSensitivity = IdentifierField.CATALOG.setCaseSensitive(caseSensitivity, catalog);
 		caseSensitivity = IdentifierField.SCHEMA.setCaseSensitive(caseSensitivity, schema);
 		caseSensitivity = IdentifierField.TABLE.setCaseSensitive(caseSensitivity, table);
 		caseSensitivity = IdentifierField.COLUMN.setCaseSensitive(caseSensitivity, column);
+		initSupportedFeatures();
+	}
+
+	/**
+	 * Initialize the list of optional features supported by this translator.
+	 *
+	 * <p>
+	 * 	By default, all optional features are supported except the following:
+	 * </p>
+	 * <ul>
+	 * 	<li>All geometric functions,</li>
+	 * 	<li>ILIKE,</li>
+	 * 	<li>and IN_UNIT</li>
+	 * </ul>
+	 *
+	 * @since 2.0
+	 */
+	protected void initSupportedFeatures() {
+		// Support all features...
+		supportedFeatures.supportAll();
+		// ...except all geometries:
+		supportedFeatures.unsupportAll(LanguageFeature.TYPE_ADQL_GEO);
+		// ...except ILIKE:
+		supportedFeatures.unsupport(ComparisonOperator.ILIKE.getFeatureDescription());
+		// ...except IN_UNIT:
+		supportedFeatures.unsupport(InUnitFunction.FEATURE);
 	}
 
 	@Override
-	public boolean isCaseSensitive(final IdentifierField field){
-		return field == null ? false : field.isCaseSensitive(caseSensitivity);
+	public final FeatureSet getSupportedFeatures() {
+		return supportedFeatures;
 	}
 
 	@Override
-	public StringBuffer appendIdentifier(final StringBuffer str, final String id, final boolean caseSensitive){
+	public boolean isCaseSensitive(final IdentifierField field) {
+		return field != null && field.isCaseSensitive(caseSensitivity);
+	}
+
+	@Override
+	public StringBuffer appendIdentifier(final StringBuffer str, final String id, final boolean caseSensitive) {
 		/* Note: In MySQL the identifier quoting character is a back-quote. */
-		if (caseSensitive && !id.matches("\"[^\"]*\""))
+		if (caseSensitive && !DBIdentifier.isDelimited(id))
 			return str.append('`').append(id).append('`');
 		else
 			return str.append(id);
+	}
+
+	/* ********************************************************************** */
+	/* *                                                                    * */
+	/* * SET OPERATIONS TRANSLATIONS                                        * */
+	/* *                                                                    * */
+	/* ********************************************************************** */
+
+	@Override
+	public String translate(SetOperation set) throws TranslationException {
+		StringBuffer sql = new StringBuffer();
+
+		String tPrefix = "t" + System.currentTimeMillis() + "_";
+		int tCnt = 1;
+
+		switch(set.getOperation()) {
+
+			/* CASE: UNION */
+			case UNION:
+
+				if (!set.getWith().isEmpty())
+					sql.append(translate(set.getWith())).append('\n');
+
+				boolean extendedSetExp = (set.getLeftSet() instanceof SetOperation || !set.getLeftSet().getOrderBy().isEmpty() || set.getLeftSet().getLimit() > 0 || set.getLeftSet().getOffset() != null);
+				if (extendedSetExp)
+					sql.append('(');
+				sql.append(translate(set.getLeftSet()));
+				if (extendedSetExp)
+					sql.append(')');
+				sql.append('\n');
+
+				sql.append(set.getOperation());
+				if (set.isWithDuplicates())
+					sql.append(" ALL");
+				sql.append('\n');
+
+				extendedSetExp = (set.getRightSet() instanceof SetOperation || !set.getRightSet().getOrderBy().isEmpty() || set.getRightSet().getLimit() > 0 || set.getRightSet().getOffset() != null);
+				if (extendedSetExp)
+					sql.append('(');
+				sql.append(translate(set.getRightSet()));
+				if (extendedSetExp)
+					sql.append(')');
+
+				if (!set.getOrderBy().isEmpty())
+					sql.append('\n').append(translate(set.getOrderBy()));
+
+				if (set.getOffset() != null)
+					sql.append("\nOFFSET ").append(set.getOffset().getValue());
+
+				break;
+
+			/* CASE: INTERSECT and EXCEPT */
+			case INTERSECT:
+			case EXCEPT:
+
+				final String t1 = tPrefix + (tCnt++);
+				final String t2 = tPrefix + (tCnt++);
+
+				if (!set.getWith().isEmpty())
+					sql.append(translate(set.getWith())).append('\n');
+
+				sql.append("SELECT " + (set.isWithDuplicates() ? "" : "DISTINCT "));
+				appendIdentifier(sql, t1, IdentifierField.TABLE);
+				sql.append(".*\nFROM");
+
+				sql.append(" (\n").append(translate(set.getLeftSet()));
+				sql.append(") AS ");
+				appendIdentifier(sql, t1, IdentifierField.TABLE);
+
+				if (set.getOperation() == SetOperationType.INTERSECT)
+					sql.append("\nINNER JOIN");
+				else
+					sql.append("\nLEFT JOIN");
+
+				sql.append(" (\n").append(translate(set.getRightSet()));
+				sql.append(") AS ");
+				appendIdentifier(sql, t2, IdentifierField.TABLE);
+
+				sql.append("\nON ");
+				final DBColumn[] leftCols = set.getLeftSet().getResultingColumns();
+				final DBColumn[] rightCols = set.getRightSet().getResultingColumns();
+				for(int i = 0; i < leftCols.length; i++) {
+					if (i > 0)
+						sql.append(" AND ");
+					appendIdentifier(sql, t1, IdentifierField.TABLE);
+					sql.append('.');
+					appendIdentifier(sql, leftCols[i].getADQLName(), IdentifierField.COLUMN);
+					sql.append('=');
+					appendIdentifier(sql, t2, IdentifierField.TABLE);
+					sql.append('.');
+					appendIdentifier(sql, rightCols[i].getADQLName(), IdentifierField.COLUMN);
+				}
+
+				if (set.getOperation() == SetOperationType.EXCEPT) {
+					sql.append("\nWHERE ");
+					for(int i = 0; i < rightCols.length; i++) {
+						if (i > 0)
+							sql.append(" AND ");
+						appendIdentifier(sql, t2, IdentifierField.TABLE);
+						sql.append('.');
+						appendIdentifier(sql, rightCols[i].getADQLName(), IdentifierField.COLUMN);
+						sql.append(" IS NULL");
+					}
+				}
+
+				if (!set.getOrderBy().isEmpty())
+					sql.append('\n').append(translate(set.getOrderBy()));
+
+				if (set.getOffset() != null)
+					sql.append("\nOFFSET ").append(set.getOffset().getValue());
+
+				break;
+
+			/* ANYTHING ELSE: error! */
+			default:
+				throw new TranslationException("Unsupported SET operation: " + set.getOperation() + "!");
+		}
+
+		return sql.toString();
 	}
 
 	/* ********************************************************************** */
@@ -137,10 +315,35 @@ public class MySQLTranslator extends JDBCTranslator {
 	/* ********************************************************************** */
 
 	@Override
-	public String translate(Concatenation concat) throws TranslationException{
-		StringBuffer translated = new StringBuffer();
+	public String translate(MathFunction fct) throws TranslationException {
+		switch(fct.getType()) {
+			case TRUNCATE:
+				if (fct.getNbParameters() >= 2)
+					return "truncate(" + translate(fct.getParameter(0)) + ", " + translate(fct.getParameter(1)) + ")";
+				else
+					return "truncate(" + translate(fct.getParameter(0)) + ", 0)";
 
-		for(ADQLOperand op : concat){
+			default:
+				return getDefaultADQLFunction(fct);
+		}
+	}
+
+	@Override
+	public String translate(Comparison comp) throws TranslationException {
+		switch(comp.getOperator()) {
+			case ILIKE:
+			case NOTILIKE:
+				throw new TranslationException("Translation of ILIKE impossible! This is not supported natively in MySQL.");
+			default:
+				return translate(comp.getLeftOperand()) + " " + comp.getOperator().toADQL() + " " + translate(comp.getRightOperand());
+		}
+	}
+
+	@Override
+	public String translate(Concatenation concat) throws TranslationException {
+		StringBuilder translated = new StringBuilder();
+
+		for(ADQLOperand op : concat) {
 			if (translated.length() == 0)
 				translated.append("CONCAT(");
 			else
@@ -152,6 +355,11 @@ public class MySQLTranslator extends JDBCTranslator {
 		return translated.toString();
 	}
 
+	@Override
+	public String translate(final InUnitFunction fct) throws TranslationException {
+		return getDefaultADQLFunction(fct);
+	}
+
 	/* ********************************************************************** */
 	/* *                                                                    * */
 	/* * TYPE MANAGEMENT                                                    * */
@@ -159,7 +367,51 @@ public class MySQLTranslator extends JDBCTranslator {
 	/* ********************************************************************** */
 
 	@Override
-	public DBType convertTypeFromDB(final int dbmsType, final String rawDbmsTypeName, String dbmsTypeName, final String[] params){
+	public String translate(CastFunction fct) throws TranslationException {
+		// If a translator is defined, just use it:
+		if (fct.getFunctionTranslator() != null)
+			return fct.getFunctionTranslator().translate(fct, this);
+
+		// Otherwise, apply a default translation:
+		else {
+			StringBuilder sql = new StringBuilder(fct.getName());
+
+			sql.append('(');
+			sql.append(fct.getValue() == null ? "NULL" : translate(fct.getValue()));
+			sql.append(" AS ");
+
+			// if the returned type is known, translate it:
+			if (fct.getTargetType().getReturnType() != null) {
+				final DBType returnType = fct.getTargetType().getReturnType();
+				switch(returnType.type) {
+					case SMALLINT:
+					case INTEGER:
+					case BIGINT:
+						sql.append("SIGNED INTEGER");
+						break;
+					case CHAR:
+					case VARCHAR:
+						sql.append("CHAR").append((returnType.length > 0 ? "(" + returnType.length + ")" : ""));
+						break;
+					case TIMESTAMP:
+						sql.append("DATETIME");
+						break;
+					default:
+						sql.append(convertTypeToDB(fct.getTargetType().getReturnType()));
+						break;
+				}
+			}
+			// but if not known, use the ADQL version:
+			else
+				sql.append(fct.getTargetType().toADQL());
+
+			sql.append(')');
+			return sql.toString();
+		}
+	}
+
+	@Override
+	public DBType convertTypeFromDB(final int dbmsType, final String rawDbmsTypeName, String dbmsTypeName, final String[] params) {
 		// If no type is provided return VARCHAR:
 		if (dbmsTypeName == null || dbmsTypeName.trim().length() == 0)
 			return null;
@@ -169,10 +421,10 @@ public class MySQLTranslator extends JDBCTranslator {
 
 		// Extract the length parameter (always the first one):
 		int lengthParam = DBType.NO_LENGTH;
-		if (params != null && params.length > 0){
-			try{
+		if (params != null && params.length > 0) {
+			try {
 				lengthParam = Integer.parseInt(params[0]);
-			}catch(NumberFormatException nfe){
+			} catch(NumberFormatException nfe) {
 			}
 		}
 
@@ -218,11 +470,11 @@ public class MySQLTranslator extends JDBCTranslator {
 	}
 
 	@Override
-	public String convertTypeToDB(final DBType type){
+	public String convertTypeToDB(final DBType type) {
 		if (type == null)
 			return "VARCHAR(" + DEFAULT_VARIABLE_LENGTH + ")";
 
-		switch(type.type){
+		switch(type.type) {
 
 			case SMALLINT:
 			case INTEGER:
@@ -247,6 +499,8 @@ public class MySQLTranslator extends JDBCTranslator {
 				return "TEXT";
 
 			case POINT:
+			case CIRCLE:
+			case POLYGON:
 			case REGION:
 			default:
 				return "VARCHAR(" + DEFAULT_VARIABLE_LENGTH + ")";
@@ -254,12 +508,12 @@ public class MySQLTranslator extends JDBCTranslator {
 	}
 
 	@Override
-	public Region translateGeometryFromDB(final Object jdbcColValue) throws ParseException{
+	public Region translateGeometryFromDB(final Object jdbcColValue) throws ParseException {
 		throw new ParseException("Unsupported geometrical value! The value \"" + jdbcColValue + "\" can not be parsed as a region.");
 	}
 
 	@Override
-	public Object translateGeometryToDB(final Region region) throws ParseException{
+	public Object translateGeometryToDB(final Region region) throws ParseException {
 		throw new ParseException("Geometries can not be uploaded in the database in this implementation!");
 	}
 
@@ -270,63 +524,58 @@ public class MySQLTranslator extends JDBCTranslator {
 	/* ********************************************************************** */
 
 	@Override
-	public String translate(ExtractCoord extractCoord) throws TranslationException{
+	public String translate(ExtractCoord extractCoord) throws TranslationException {
 		return getDefaultADQLFunction(extractCoord);
 	}
 
 	@Override
-	public String translate(ExtractCoordSys extractCoordSys) throws TranslationException{
+	public String translate(ExtractCoordSys extractCoordSys) throws TranslationException {
 		return getDefaultADQLFunction(extractCoordSys);
 	}
 
 	@Override
-	public String translate(AreaFunction areaFunction) throws TranslationException{
+	public String translate(AreaFunction areaFunction) throws TranslationException {
 		return getDefaultADQLFunction(areaFunction);
 	}
 
 	@Override
-	public String translate(CentroidFunction centroidFunction) throws TranslationException{
+	public String translate(CentroidFunction centroidFunction) throws TranslationException {
 		return getDefaultADQLFunction(centroidFunction);
 	}
 
 	@Override
-	public String translate(DistanceFunction fct) throws TranslationException{
+	public String translate(DistanceFunction fct) throws TranslationException {
 		return getDefaultADQLFunction(fct);
 	}
 
 	@Override
-	public String translate(ContainsFunction fct) throws TranslationException{
+	public String translate(ContainsFunction fct) throws TranslationException {
 		return getDefaultADQLFunction(fct);
 	}
 
 	@Override
-	public String translate(IntersectsFunction fct) throws TranslationException{
+	public String translate(IntersectsFunction fct) throws TranslationException {
 		return getDefaultADQLFunction(fct);
 	}
 
 	@Override
-	public String translate(BoxFunction box) throws TranslationException{
+	public String translate(BoxFunction box) throws TranslationException {
 		return getDefaultADQLFunction(box);
 	}
 
 	@Override
-	public String translate(CircleFunction circle) throws TranslationException{
+	public String translate(CircleFunction circle) throws TranslationException {
 		return getDefaultADQLFunction(circle);
 	}
 
 	@Override
-	public String translate(PointFunction point) throws TranslationException{
+	public String translate(PointFunction point) throws TranslationException {
 		return getDefaultADQLFunction(point);
 	}
 
 	@Override
-	public String translate(PolygonFunction polygon) throws TranslationException{
+	public String translate(PolygonFunction polygon) throws TranslationException {
 		return getDefaultADQLFunction(polygon);
-	}
-
-	@Override
-	public String translate(RegionFunction region) throws TranslationException{
-		return getDefaultADQLFunction(region);
 	}
 
 }
