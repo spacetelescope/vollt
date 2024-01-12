@@ -27,8 +27,6 @@ import java.util.List;
  * under the GPLv3 license.
  */
 
-import adql.db.STCS.Region;
-import adql.db.exception.UnresolvedJoinException;
 import adql.parser.SQLServer_ADQLQueryFactory;
 import adql.query.ADQLList;
 import adql.query.ADQLObject;
@@ -48,10 +46,8 @@ import adql.query.operand.function.geometry.BoxFunction;
 import adql.query.operand.function.geometry.CircleFunction;
 import adql.query.operand.function.geometry.ContainsFunction;
 import adql.query.operand.function.geometry.GeometryFunction;
-import adql.query.operand.function.geometry.IntersectsFunction;
 import adql.query.operand.function.geometry.PointFunction;
 import adql.query.operand.function.geometry.PolygonFunction;
-import adql.query.operand.function.geometry.RegionFunction;
 
 /**
  * <p>

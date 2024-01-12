@@ -19,42 +19,10 @@ package adql.translator;
  * Copyright 2016 - Astronomisches Rechen Institut (ARI)
  */
 
-import java.util.Iterator;
-
-import adql.db.DBChecker;
-import adql.db.DBColumn;
-import adql.db.DBTable;
 import adql.db.DBType;
-import adql.db.DefaultDBColumn;
-import adql.db.DefaultDBTable;
-import adql.db.SearchColumnList;
-import adql.db.DBType.DBDatatype;
-import adql.db.STCS.Region;
-import adql.db.exception.UnresolvedJoinException;
-import adql.parser.ADQLParser;
-import adql.parser.ParseException;
+import adql.db.region.Region;
 import adql.parser.SQLServer_ADQLQueryFactory;
 import adql.query.ADQLQuery;
-import adql.query.ClauseSelect;
-import adql.query.IdentifierField;
-import adql.query.from.ADQLJoin;
-import adql.query.operand.ADQLColumn;
-import adql.query.operand.ADQLOperand;
-import adql.query.operand.function.ADQLFunction;
-import adql.query.operand.function.DefaultUDF;
-import adql.query.operand.function.UserDefinedFunction;
-import adql.query.operand.function.geometry.AreaFunction;
-import adql.query.operand.function.geometry.BoxFunction;
-import adql.query.operand.function.geometry.CentroidFunction;
-import adql.query.operand.function.geometry.CircleFunction;
-import adql.query.operand.function.geometry.ContainsFunction;
-import adql.query.operand.function.geometry.DistanceFunction;
-import adql.query.operand.function.geometry.ExtractCoord;
-import adql.query.operand.function.geometry.ExtractCoordSys;
-import adql.query.operand.function.geometry.IntersectsFunction;
-import adql.query.operand.function.geometry.PointFunction;
-import adql.query.operand.function.geometry.PolygonFunction;
-import adql.query.operand.function.geometry.RegionFunction;
 
 /**
  * <p>MS SQL Server translator.</p>
