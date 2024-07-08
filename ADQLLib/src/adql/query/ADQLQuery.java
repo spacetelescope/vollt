@@ -355,7 +355,7 @@ public class ADQLQuery extends ADQLSet {
 					// create the DBColumn:
 					if (operand instanceof ADQLColumn && ((ADQLColumn)operand).getDBLink() != null) {
 						col = ((ADQLColumn)operand).getDBLink();
-						col = col.copy(alias, alias, col.getTable());
+						col = col.copy(col.getDBName(), alias, col.getTable());
 					} else
 						col = new DefaultDBColumn(alias, null);
 				}
