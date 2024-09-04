@@ -100,18 +100,18 @@ public class Q3CTranslator extends PostgreSQLTranslator {
 
 	@Override
 	public String translate(PointFunction point) throws TranslationException{
-		StringBuffer str = new StringBuffer("spoint(");
-		str.append("radians(").append(translate(point.getCoord1())).append("),");
-		str.append("radians(").append(translate(point.getCoord2())).append("))");
+		StringBuffer str = new StringBuffer("");
+		str.append(translate(point.getCoord1())).append(",");
+		str.append(translate(point.getCoord2()));
 		return str.toString();
 	}
 
 	@Override
 	public String translate(CircleFunction circle) throws TranslationException{
-		StringBuffer str = new StringBuffer("scircle(");
-		str.append("spoint(radians(").append(translate(circle.getCoord1())).append("),");
-		str.append("radians(").append(translate(circle.getCoord2())).append(")),");
-		str.append("radians(").append(translate(circle.getRadius())).append("))");
+		StringBuffer str = new StringBuffer("");
+		str.append(translate(circle.getCoord1())).append(",");
+		str.append(translate(circle.getCoord2())).append(",");
+		str.append(translate(circle.getRadius()));
 		return str.toString();
 	}
 
@@ -187,8 +187,8 @@ public class Q3CTranslator extends PostgreSQLTranslator {
 
 	@Override
 	public String translate(ContainsFunction fct) throws TranslationException{
-		StringBuffer str = new StringBuffer("(");
-		str.append(translate(fct.getLeftParam())).append(" @ ").append(translate(fct.getRightParam())).append(")");
+		StringBuffer str = new StringBuffer("q3c_radial_query(");
+		str.append(translate(fct.getLeftParam())).append(",").append(translate(fct.getRightParam())).append(")");
 		return str.toString();
 	}
 
