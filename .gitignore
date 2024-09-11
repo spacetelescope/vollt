@@ -1,7 +1,5 @@
-ADQLLib/build/**
-UWSLib/build/**
-TAPLib/build/**
 /nbproject/private/
+/build/
 /dist/
 /bin/
 /reports/
