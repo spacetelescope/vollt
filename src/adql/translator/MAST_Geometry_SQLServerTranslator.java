@@ -129,12 +129,15 @@ public class MAST_Geometry_SQLServerTranslator extends SQLServerTranslator {
 	}
 	
 	private String ReplaceTableNames(String input, String newValue) {
-		for (int iGeometryTable = 0; iGeometryTable < CatalogTableNames.length; ++iGeometryTable){	
-			if(input.contains(CatalogTableNames[iGeometryTable]))
-				input = input.replace(CatalogTableNames[iGeometryTable], newValue);
+		input = input.toLowerCase();
+		for(int iGeometryTable = 0; iGeometryTable < this.CatalogTableNames.length; ++iGeometryTable) {
+			String geoTableName = this.CatalogTableNames[iGeometryTable].toLowerCase();
+		   if (input.contains(geoTableName)) {
+			  input = input.replace(geoTableName, newValue);
+		   }
 		}
 		return input;
-	}
+	 }
 	
 	// Only qualify these once; avoid calling multiple times in nested subquery parsing
 	private String QualifyUserFunctionNames(String input) {
