@@ -244,6 +244,40 @@ public class TestDBChecker {
 			}
 		}
 	}
+	
+	@Test
+	public void testSimpleAlias() {
+		ADQLParser parser = new ADQLParser(ADQLVersion.V2_0);
+		parser.setQueryChecker(new DBChecker(tables));
+		try {
+			ADQLSet adql = parser.parseQuery("SELECT colI as anyOtherName FROM aschema.foo");
+			assertNotNull(adql);
+			assertEquals("SELECT \"aschema\".\"foo\".\"colI\" AS \"anyothername\"\nFROM \"aschema\".\"foo\"", (new PostgreSQLTranslator()).translate(adql));
+		} catch(ParseException pe) {
+			pe.printStackTrace();
+			fail("Failed with ADQL-V2_0");
+		} catch(TranslationException te) {
+			te.printStackTrace();
+			fail("Failed with ADQL-V2_0");
+		}
+	}
+	
+	@Test
+	public void testSimpleColAndTableAlias() {
+		ADQLParser parser = new ADQLParser(ADQLVersion.V2_0);
+		parser.setQueryChecker(new DBChecker(tables));
+		try {
+			ADQLSet adql = parser.parseQuery("SELECT colI as anyOtherName FROM aschema.foo as myTable");
+			assertNotNull(adql);
+			assertEquals("SELECT \"mytable\".\"colI\" AS \"anyothername\"\nFROM \"aschema\".\"foo\" AS \"mytable\"", (new PostgreSQLTranslator()).translate(adql));
+		} catch(ParseException pe) {
+			pe.printStackTrace();
+			fail("Failed with ADQL-V2_0");
+		} catch(TranslationException te) {
+			te.printStackTrace();
+			fail("Failed with ADQL-V2_0");
+		}
+	}
 
 	@Test
 	public void testNumericOrStringValueExpressionPrimary() {
