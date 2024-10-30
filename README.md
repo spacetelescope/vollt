@@ -51,7 +51,7 @@ In the `lib` directory, you will find 3 JAR files:
 * The *[STIL Library](http://www.star.bris.ac.uk/~mbt/stil/)*: `stil_3.3-2.jar` (i.e. packages `nom.tap`, `org.apache.tools.bzip2`, `uk.ac.starlink`). This library helps supporting VOTable (read and write) and some other output formats.
 * The *JSON Library*: `json-20180813.jar` (i.e. the former included package `org.json`). This library helps manipulating JSON content. _This library was already used (before v4.4 of UWS-Lib and v2.3 of TAP-Lib) but it was included in the sources instead of being considered as an external library._
 
-The *Postgres JDBC Driver* is needed ONLY IF you want to use (and keep) `adql.translator.PgSphereTranslator`. You can get this driver on the [PostgreSQL website](https://jdbc.postgresql.org/download.html). The required package for the ADQL and TAP libraries is `org.postgresql` (and particularly the class `org.postgresql.Driver`).
+The *Postgres JDBC Driver* is needed ONLY IF you want to use (and keep) `adql.translator.PgSphereTranslator` or other Postgres translators. You can get this driver on the [PostgreSQL website](https://jdbc.postgresql.org/download.html). The required package for the ADQL and TAP libraries is `org.postgresql` (and particularly the class `org.postgresql.Driver`).
 
 The *HTTP Servlet API* is generally available in the libraries coming along the Web Application Server you are using. For instance, for Tomcat, it is in the directory `lib` (or `/var/lib/tomcat-x/lib` if installed with Aptitude on a Linux system ; `x` is the version number of Tomcat). The required package for the UWS and TAP library is `javax.servlet`.
 
