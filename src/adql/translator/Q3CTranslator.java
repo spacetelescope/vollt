@@ -184,34 +184,6 @@ public class Q3CTranslator extends PostgreSQLTranslator {
 			return super.translate(comp);
 	}
 
-	@Override
-	public DBType convertTypeFromDB(final int dbmsType, final String rawDbmsTypeName, String dbmsTypeName, final String[] params){
-		// If no type is provided return VARCHAR:
-		if (dbmsTypeName == null || dbmsTypeName.trim().length() == 0)
-			return null;
-
-		// Put the dbmsTypeName in lower case for the following comparisons:
-		dbmsTypeName = dbmsTypeName.toLowerCase();
-
-		if (dbmsTypeName.equals("spoint"))
-			return new DBType(DBDatatype.POINT);
-		else if (dbmsTypeName.equals("scircle") || dbmsTypeName.equals("sbox") || dbmsTypeName.equals("spoly"))
-			return new DBType(DBDatatype.REGION);
-		else
-			return super.convertTypeFromDB(dbmsType, rawDbmsTypeName, dbmsTypeName, params);
-	}
-
-	@Override
-	public String convertTypeToDB(final DBType type){
-		if (type != null){
-			if (type.type == DBDatatype.POINT)
-				return "spoint";
-			else if (type.type == DBDatatype.REGION)
-				return "spoly";
-		}
-		return super.convertTypeToDB(type);
-	}
-
 	/**
 	 * <p>Convert the specified circle into a polygon.
 	 * The generated polygon is formatted using the Q3C syntax.</p>
