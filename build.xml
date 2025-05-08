@@ -29,7 +29,7 @@
 	<property name="srcJarFile" value="${jarDest}/adql_src_${version}.jar" />
 	<property name="javadocJarFile" value="${jarDest}/adql_javadoc_${version}.jar" />
 	
-	<property name="adqlParserLink" value="adqlParser.jar" />
+	<!--<property name="adqlParserLink" value="adqlParser.jar" />-->
 	
 	<property name="testsDir" value="test" />
 	<property name="junitReportsDir" value="reports/adql" />
@@ -108,7 +108,7 @@
 		<delete file="${libJarFile}" failonerror="false" />
 		<delete file="${srcJarFile}" failonerror="false" />
 		<delete file="${adqlParserJarFile}" failonerror="false" />
-		<symlink action="delete" link="${adqlParserLink}" failonerror="false" />
+		<!--<symlink action="delete" link="${adqlParserLink}" failonerror="false" />-->
 		<delete dir="${compileDir}" failonerror="false" />
 		<delete dir="${junitBuildDir}" failonerror="false" />
 	</target>
@@ -133,8 +133,8 @@
                 <attribute name="Class-Path" value="."/>
             </manifest>
         </jar>
-		<echo>And its symbolic link:</echo>
-		<symlink action="single" link="${adqlParserLink}" resource="${adqlParserJarFile}" failonerror="false" />
+		<!--<echo>And its symbolic link:</echo>
+		<symlink action="single" link="${adqlParserLink}" resource="${adqlParserJarFile}" failonerror="false" />-->
 		<echo>Delete compiled classes:</echo>
 		<delete dir="${compileDir}" failonerror="true" />
 	</target>
