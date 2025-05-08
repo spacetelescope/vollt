@@ -1,6 +1,6 @@
 package adql.translator;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
@@ -45,14 +45,13 @@ public class TestQ3CTranslator {
 		try{
 			// Test with an easy translation:
 			String adqlquery = 
-                "SELECT * FROM aTable WHERE DISTANCE(POINT('J2000', 187.11, 11.58), POINT('J2000', 187.15, 12)) < 0.5";
+                "SELECT * FROM aTable WHERE DISTANCE(POINT('J2000 GEOCENTER', 187.11, 11.58), POINT('J2000 GEOCENTER', 187.15, 12)) < 0.5";
 
             ADQLParser parser = new ADQLParser(new DBChecker(tables), new ADQLQueryFactory());
             ADQLQuery query = parser.parseQuery(adqlquery);
 			Q3CTranslator translator = new Q3CTranslator();
        
-            String xlated = translator.translate(query);
-            System.out.println(xlated);
+            assertTrue(translator.translate(query).contains("q3c_dist(187.11,11.58,187.15,12)"));
 
 		}catch(ParseException pe){
 			pe.printStackTrace();
@@ -61,36 +60,14 @@ public class TestQ3CTranslator {
 			te.printStackTrace();
 			fail("No error was expected from this translation. (see the console for more details)");
 		}
-	}    
-
-    @Test
-	public void testFourParamDistance(){
-		try{
-			// Test with an easy translation:
-			String adqlquery = 
-                "SELECT * FROM aTable WHERE DISTANCE(POINT('J2000', 187.11, 11.58), POINT('J2000', ra, dec)) < 0.5";
-
-            ADQLQuery query = (new ADQLParser(new DBChecker(tables), new ADQLQueryFactory())).parseQuery(adqlquery);
-			Q3CTranslator translator = new Q3CTranslator();
-
-			//assertEquals("SELECT 'a||b||c' + ' ' + 'd+e|f' AS \"concat\"", translator.translate(query.getSelect()));
-        
-            String xlated = translator.translate(query);
-            System.out.println(xlated);
-
-		}catch(ParseException pe){
-			pe.printStackTrace();
-			fail("The given ADQL query is completely correct. No error should have occurred while parsing it. (see the console for more details)");
-		}catch(TranslationException te){
-			te.printStackTrace();
-			fail("No error was expected from this translation. (see the console for more details)");
-		}
-	}    
+	}  
 
     @Test
 	public void testCrossmatch(){
+        // Test crossmatch query as derived from ESA examples using angular separation:
+        // https://www.cosmos.esa.int/web/gaia-users/archive/writing-queries
+        // Note this library only supports the POINT, POINT version of DISTANCE at this time.
 		try{
-			// Test with an easy translation:
 			String adqlquery = 
                 "SELECT TOP 100 aTable.*, bTable.* " +
                 "FROM (" +
@@ -103,17 +80,14 @@ public class TestQ3CTranslator {
             ADQLQuery query = (new ADQLParser(new DBChecker(tables), new ADQLQueryFactory())).parseQuery(adqlquery);
 			Q3CTranslator translator = new Q3CTranslator();
 
-			//assertEquals("SELECT 'a||b||c' + ' ' + 'd+e|f' AS \"concat\"", translator.translate(query.getSelect()));
-        
-            String xlated = translator.translate(query);
-            System.out.println(xlated);
+			assertTrue(translator.translate(query).contains("q3c_dist"));
 
 		}catch(ParseException pe){
 			pe.printStackTrace();
-			//fail("The given ADQL query is completely correct. No error should have occurred while parsing it. (see the console for more details)");
+			fail("The given ADQL query is completely correct. No error should have occurred while parsing it. (see the console for more details)");
 		}catch(TranslationException te){
 			te.printStackTrace();
-			//fail("No error was expected from this translation. (see the console for more details)");
+			fail("No error was expected from this translation. (see the console for more details)");
 		}
 	}
 }
