@@ -166,8 +166,8 @@ public class Q3CTranslator extends PostgreSQLTranslator {
 
 	@Override
 	public String translate(DistanceFunction fct) throws TranslationException{
-		StringBuffer str = new StringBuffer("degrees(");
-		str.append(translate(fct.getP1())).append(" <-> ").append(translate(fct.getP2())).append(")");
+		StringBuffer str = new StringBuffer("q3c_dist(");
+		str.append(translate(fct.getP1())).append(",").append(translate(fct.getP2())).append(")");
 		return str.toString();
 	}
 
