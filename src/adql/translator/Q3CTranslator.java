@@ -51,8 +51,8 @@ import adql.query.operand.function.geometry.PolygonFunction;
  * 	class. The other functions are managed by {@link PostgreSQLTranslator}.
  * </p>
  *
- * @author Gr&eacute;gory Mantelet (CDS;ARI)
- * @version 1.4 (07/2017)
+ * @author Gr&eacute;gory Mantelet (CDS;ARI) / TS Dower (STScI)
+ * @version 1.4 (2024)
  */
 public class Q3CTranslator extends PostgreSQLTranslator {
 
@@ -154,34 +154,9 @@ public class Q3CTranslator extends PostgreSQLTranslator {
 	}
 
 	@Override
-	public String translate(ExtractCoord extractCoord) throws TranslationException{
-		StringBuffer str = new StringBuffer("degrees(");
-		if (extractCoord.getName().equalsIgnoreCase("COORD1"))
-			str.append("long(");
-		else
-			str.append("lat(");
-		str.append(translate(extractCoord.getParameter(0))).append("))");
-		return str.toString();
-	}
-
-	@Override
 	public String translate(DistanceFunction fct) throws TranslationException{
 		StringBuffer str = new StringBuffer("q3c_dist(");
 		str.append(translate(fct.getP1())).append(",").append(translate(fct.getP2())).append(")");
-		return str.toString();
-	}
-
-	@Override
-	public String translate(AreaFunction areaFunction) throws TranslationException{
-		StringBuffer str = new StringBuffer("degrees(degrees(area(");
-		str.append(translate(areaFunction.getParameter())).append(")))");
-		return str.toString();
-	}
-
-	@Override
-	public String translate(CentroidFunction centroidFunction) throws TranslationException{
-		StringBuffer str = new StringBuffer("center(");
-		str.append(translate(centroidFunction.getParameter(0))).append(")");
 		return str.toString();
 	}
 
@@ -237,100 +212,6 @@ public class Q3CTranslator extends PostgreSQLTranslator {
 		return super.convertTypeToDB(type);
 	}
 
-	@Override
-	public Region translateGeometryFromDB(final Object jdbcColValue) throws ParseException{
-		// A NULL value stays NULL:
-		if (jdbcColValue == null)
-			return null;
-		// Only a special object is expected:
-		else if (!(jdbcColValue instanceof PGobject))
-			throw new ParseException("Incompatible type! The column value \"" + jdbcColValue.toString() + "\" was supposed to be a geometrical object.");
-
-		PGobject pgo = (PGobject)jdbcColValue;
-
-		// In case one or both of the fields of the given object are NULL:
-		if (pgo == null || pgo.getType() == null || pgo.getValue() == null || pgo.getValue().length() == 0)
-			return null;
-
-		// Extract the object type and its value:
-		String objType = pgo.getType().toLowerCase();
-		String geomStr = pgo.getValue();
-
-		/* Only spoint, scircle, sbox and spoly are supported ;
-		 * these geometries are parsed and transformed in Region instances:*/
-		if (objType.equals("spoint"))
-			return (new Q3CGeometryParser()).parsePoint(geomStr);
-		else if (objType.equals("scircle"))
-			return (new Q3CGeometryParser()).parseCircle(geomStr);
-		else if (objType.equals("sbox"))
-			return (new Q3CGeometryParser()).parseBox(geomStr);
-		else if (objType.equals("spoly"))
-			return (new Q3CGeometryParser()).parsePolygon(geomStr);
-		else
-			throw new ParseException("Unsupported Q3C type: \"" + objType + "\"! Impossible to convert the column value \"" + geomStr + "\" into a Region.");
-	}
-
-	@Override
-	public Object translateGeometryToDB(final Region region) throws ParseException{
-		// A NULL value stays NULL:
-		if (region == null)
-			return null;
-
-		try{
-			PGobject dbRegion = new PGobject();
-			StringBuffer buf;
-
-			// Build the Q3C expression from the given geometry in function of its type:
-			switch(region.type){
-
-				case POSITION:
-					dbRegion.setType("spoint");
-					dbRegion.setValue("(" + region.coordinates[0][0] + "d," + region.coordinates[0][1] + "d)");
-					break;
-
-				case POLYGON:
-					dbRegion.setType("spoly");
-					buf = new StringBuffer("{");
-					for(int i = 0; i < region.coordinates.length; i++){
-						if (i > 0)
-							buf.append(',');
-						buf.append('(').append(region.coordinates[i][0]).append("d,").append(region.coordinates[i][1]).append("d)");
-					}
-					buf.append('}');
-					dbRegion.setValue(buf.toString());
-					break;
-
-				case BOX:
-					dbRegion.setType("spoly");
-					buf = new StringBuffer("{");
-					// south west
-					buf.append('(').append(region.coordinates[0][0] - region.width / 2).append("d,").append(region.coordinates[0][1] - region.height / 2).append("d),");
-					// north west
-					buf.append('(').append(region.coordinates[0][0] - region.width / 2).append("d,").append(region.coordinates[0][1] + region.height / 2).append("d),");
-					// north east
-					buf.append('(').append(region.coordinates[0][0] + region.width / 2).append("d,").append(region.coordinates[0][1] + region.height / 2).append("d),");
-					// south east
-					buf.append('(').append(region.coordinates[0][0] + region.width / 2).append("d,").append(region.coordinates[0][1] - region.height / 2).append("d)");
-					buf.append('}');
-					dbRegion.setValue(buf.toString());
-					break;
-
-				case CIRCLE:
-					dbRegion.setType("spoly");
-					dbRegion.setValue(circleToPolygon(region.coordinates[0], region.radius));
-					break;
-
-				default:
-					throw new ParseException("Unsupported geometrical region: \"" + region.type + "\"!");
-			}
-			return dbRegion;
-		}catch(SQLException e){
-			/* This error could never happen! */
-			return null;
-		}
-	}
-
-
 	/**
 	 * <p>Convert the specified circle into a polygon.
 	 * The generated polygon is formatted using the Q3C syntax.</p>
@@ -382,8 +263,8 @@ public class Q3CTranslator extends PostgreSQLTranslator {
 	 * 	However, it always returns angle (coordinates, radius, width and height) in degrees.
 	 * </p>
 	 *
-	 * @author Gr&eacute;gory Mantelet (ARI)
-	 * @version 1.3 (11/2014)
+	 * @author Gr&eacute;gory Mantelet (CDS;ARI) / TS Dower (STScI)
+	 * @version 1.4 (2024)
 	 * @since 1.3
 	 */
 	protected static class Q3CGeometryParser {
