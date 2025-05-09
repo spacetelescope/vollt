@@ -162,8 +162,8 @@ public class Q3CTranslator extends PostgreSQLTranslator {
 
 	@Override
 	public String translate(ContainsFunction fct) throws TranslationException{
-		StringBuffer str = new StringBuffer("q3c_radial_query( ");
-		str.append(translate(fct.getLeftParam())).append(",").append(translate(fct.getRightParam())).append(" )");
+		StringBuffer str = new StringBuffer("q3c_radial_query(");
+		str.append(translate(fct.getLeftParam())).append(",").append(translate(fct.getRightParam())).append(")");
 		return str.toString();
 	}
 
