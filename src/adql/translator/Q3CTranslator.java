@@ -51,8 +51,8 @@ import adql.query.operand.function.geometry.PolygonFunction;
  * 	class. The other functions are managed by {@link PostgreSQLTranslator}.
  * </p>
  *
- * @author Gr&eacute;gory Mantelet (CDS;ARI) / TS Dower (STScI)
- * @version 1.4 (2024)
+ * @author Gr&eacute;gory Mantelet (CDS;ARI) / Theresa Dower (STScI)
+ * @version 1.5 (2025)
  */
 public class Q3CTranslator extends PostgreSQLTranslator {
 
@@ -235,8 +235,8 @@ public class Q3CTranslator extends PostgreSQLTranslator {
 	 * 	However, it always returns angle (coordinates, radius, width and height) in degrees.
 	 * </p>
 	 *
-	 * @author Gr&eacute;gory Mantelet (CDS;ARI) / TS Dower (STScI)
-	 * @version 1.4 (2024)
+	 * @author Gr&eacute;gory Mantelet (CDS;ARI) / Theresa Dower (STScI)
+	 * @version 1.5 (2025)
 	 * @since 1.3
 	 */
 	protected static class Q3CGeometryParser {
