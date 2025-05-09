@@ -48,7 +48,7 @@ public class TestQ3CTranslator {
 
             ADQLParser parser = new ADQLParser(new DBChecker(tables), new ADQLQueryFactory());
             ADQLQuery query = parser.parseQuery(adqlquery);
-			Q3CTranslator translator = new Q3CTranslator();
+            Q3CTranslator translator = new Q3CTranslator();
        
             assertTrue(translator.translate(query).contains("q3c_dist(187.11,11.58,187.15,12)"));
 
@@ -76,10 +76,8 @@ public class TestQ3CTranslator {
                 "JOIN bTable ON " +
                 "    DISTANCE(POINT('ICRS', aTable.ra, aTable.dec), POINT('ICRS', bTable.ra, bTable.dec)) < 0.01";
 
-            ADQLQuery query = (new ADQLParser(new DBChecker(tables), new ADQLQueryFactory())).parseQuery(adqlquery);
+			ADQLQuery query = (new ADQLParser(new DBChecker(tables), new ADQLQueryFactory())).parseQuery(adqlquery);
 			Q3CTranslator translator = new Q3CTranslator();
-            System.out.println(translator.translate(query));
-
 			assertTrue(translator.translate(query).contains("q3c_dist"));
 
 		}catch(ParseException pe){
