@@ -43,9 +43,8 @@ public class TestQ3CTranslator {
     @Test
 	public void testPointsDistance(){
 		try{
-			// Test with an easy translation:
 			String adqlquery = 
-                "SELECT * FROM aTable WHERE DISTANCE(POINT('J2000 GEOCENTER', 187.11, 11.58), POINT('J2000 GEOCENTER', 187.15, 12)) < 0.5";
+                "SELECT top 1 * FROM aTable WHERE DISTANCE(POINT('ICRS', 187.11, 11.58), POINT('ICRS', 187.15, 12)) < 0.5";
 
             ADQLParser parser = new ADQLParser(new DBChecker(tables), new ADQLQueryFactory());
             ADQLQuery query = parser.parseQuery(adqlquery);
@@ -79,6 +78,7 @@ public class TestQ3CTranslator {
 
             ADQLQuery query = (new ADQLParser(new DBChecker(tables), new ADQLQueryFactory())).parseQuery(adqlquery);
 			Q3CTranslator translator = new Q3CTranslator();
+            System.out.println(translator.translate(query));
 
 			assertTrue(translator.translate(query).contains("q3c_dist"));
 
