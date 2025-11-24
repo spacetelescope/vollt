@@ -930,70 +930,8 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 	}
 
 	@Override
-	public String translate(UserDefinedFunction fct) throws TranslationException {
-		String tr = fct.translate(this);
-		if (tr == null)
-			return getDefaultADQLFunction(fct);
-		else
-			return tr;
-	}
-
-	@Override
-	public String translate(LowerFunction fct) throws TranslationException {
-		return getDefaultADQLFunction(fct);
-	}
-
-	@Override
-	public String translate(UpperFunction fct) throws TranslationException {
-		return getDefaultADQLFunction(fct);
-	}
-
-	/**
-	 * Default translation for the given CAST function.
-	 *
-	 * <p>
-	 * 	It basically writes the same as in ADQL, except for the target datatype
-	 * 	which is written, as much as possible, in SQL.
-	 * </p>
-	 *
-	 * @param fct	The CAST function to translate.
-	 *
-	 * @return	The corresponding translation.
-	 *
-	 * @throws TranslationException	If any error occurred during translation.
-	 */
-	public final String getDefaultCastFunction(final CastFunction fct) throws TranslationException {
-		StringBuilder sql = new StringBuilder(fct.getName());
-
-		sql.append('(');
-		sql.append(fct.getValue() == null ? "NULL" : translate(fct.getValue()));
-		sql.append(" AS ");
-
-		// if the returned type is known, translate it:
-		final DBType returnType = fct.getTargetType().getReturnType();
-		if (returnType != null)
-			sql.append(convertTypeToDB(returnType));
-		// but if not known, use the ADQL version:
-		else
-			sql.append(fct.getTargetType().toADQL());
-
-		sql.append(')');
-		return sql.toString();
-	}
-
-	@Override
-	public String translate(CastFunction fct) throws TranslationException {
-		// If a translator is defined, just use it:
-		if (fct.getFunctionTranslator() != null)
-			return fct.getFunctionTranslator().translate(fct, this);
-		// Otherwise, apply a default translation:
-		else
-			return getDefaultCastFunction(fct);
-	}
-
-	@Override
-	public String translate(CoalesceFunction fct) throws TranslationException{
-		return getDefaultADQLFunction(fct);
+	public String translate(UserDefinedFunction fct) throws TranslationException{
+		return fct.translate(this);
 	}
 
 	/* *********************************** */

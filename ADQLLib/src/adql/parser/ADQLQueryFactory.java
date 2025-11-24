@@ -300,7 +300,7 @@ public class ADQLQueryFactory {
 		return new In(leftOp, valuesList, notIn);
 	}
 
-	public SQLFunction createSQLFunction(SQLFunctionType type, ADQLOperand op, boolean distinctValues) throws Exception {
+	public SQLFunction createSQLFunction(SQLFunctionType type, ADQLOperand op, boolean distinctValues) throws Exception{
 		return new SQLFunction(type, op, distinctValues);
 	}
 

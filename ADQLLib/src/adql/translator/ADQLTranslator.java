@@ -180,6 +180,9 @@ public interface ADQLTranslator {
 
 	public String translate(MathFunction fct) throws TranslationException;
 
+	/** @since 1.5 */
+	public String translate(CoalesceFunction fct) throws TranslationException;
+
 	public String translate(UserDefinedFunction fct) throws TranslationException;
 
 	/** @since 2.0 */
