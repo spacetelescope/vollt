@@ -1,19 +1,17 @@
-README
-======
+[![License: LGPL v3](https://img.shields.io/badge/License-LGPL_v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
+[![Test ADQLLib](https://github.com/gmantele/vollt/actions/workflows/adqllib.yml/badge.svg)](https://github.com/gmantele/vollt/actions/workflows/adqllib.yml)
+[![Test UWSLib](https://github.com/gmantele/vollt/actions/workflows/uwslib.yml/badge.svg)](https://github.com/gmantele/vollt/actions/workflows/uwslib.yml)
+[![Test TAPLib](https://github.com/gmantele/vollt/actions/workflows/taplib.yml/badge.svg)](https://github.com/gmantele/vollt/actions/workflows/taplib.yml)
 
-Preambule
----------
+# Preamble
 
 This GitHub repository contains the sources of the library-set named VOLLT. It
 contains 3 libraries implementing [IVOA](http://www.ivoa.net/ "International Virtual Observatory Alliance")
 standards and protocols:
 
-* [ADQL](http://www.ivoa.net/documents/latest/ADQL.html "Astronomical Data Query Language")
+* [ADQL-2.1](http://www.ivoa.net/documents/ADQL/20180112/index.html "Astronomical Data Query Language")
 * [UWS-1.1](http://www.ivoa.net/documents/UWS/20161024/index.html "Universal Worker Service pattern")
 * [TAP](http://www.ivoa.net/documents/TAP/ "Table Access Protocol")
-
-_**NOTE:** Support of ADQL-2.1 currently under development. For the moment, TAP
-is still using ADQL-2.0 by default._
 
 ### Documentation
 For a complete documentation/tutorial and a demo of the 3 libraries you should visit the following websites: [ADQLTuto](http://cdsportal.u-strasbg.fr/adqltuto), [UWSTuto](http://cdsportal.u-strasbg.fr/uwstuto) and [TAPTuto](http://cdsportal.u-strasbg.fr/taptuto).
@@ -46,7 +44,7 @@ Below are summed up the dependencies of each library:
 | Package `cds.utils`    |  X   |     |  X  |
 | Postgres JDBC Driver   |  X   |     |  X  |
 | Package `uws`          |      |  X  |  X  |
-| JSON library           |      |  X  |  X  |
+| JSON library            |      |  X  |  X  |
 | HTTP Servlet API       |      |  X  |  X  |
 | HTTP Multipart Library |      |  X  |  X  |
 | Packages `cds.*`       |      |     |  X  |
@@ -57,7 +55,7 @@ In the `lib` directory, you will find 3 JAR files:
 * The *[STIL Library](http://www.star.bris.ac.uk/~mbt/stil/)*: `stil_3.3-2.jar` (i.e. packages `nom.tap`, `org.apache.tools.bzip2`, `uk.ac.starlink`). This library helps supporting VOTable (read and write) and some other output formats.
 * The *JSON Library*: `json-20180813.jar` (i.e. the former included package `org.json`). This library helps manipulating JSON content. _This library was already used (before v4.4 of UWS-Lib and v2.3 of TAP-Lib) but it was included in the sources instead of being considered as an external library._
 
-The *Postgres JDBC Driver* is needed ONLY IF you want to use (and keep) `adql.translator.PgSphereTranslator`. You can get this driver on the [PostgreSQL website](https://jdbc.postgresql.org/download.html). The required package for the ADQL and TAP libraries is `org.postgresql` (and particularly the class `org.postgresql.Driver`).
+The *Postgres JDBC Driver* is needed ONLY IF you want to use (and keep) `adql.translator.PgSphereTranslator` or other Postgres translators. You can get this driver on the [PostgreSQL website](https://jdbc.postgresql.org/download.html). The required package for the ADQL and TAP libraries is `org.postgresql` (and particularly the class `org.postgresql.Driver`).
 
 The *HTTP Servlet API* is generally available in the libraries coming along the Web Application Server you are using. For instance, for Tomcat, it is in the directory `lib` (or `/var/lib/tomcat-x/lib` if installed with Aptitude on a Linux system ; `x` is the version number of Tomcat). The required package for the UWS and TAP library is `javax.servlet`.
 
@@ -94,5 +92,5 @@ All of these ANT scripts have the following main targets:
 * `buildAll`: equivalent of `buildLibAndSrc` and `buildJavadoc` together. The result is 3 JARs: one with the compiled classes, one with the corresponding sources and the last one with the Javadoc.
 
 ### Gradle build
-The code can be built with Gradle, either as a jar file to be included in other projects 
+The code can be built with Gradle, either as a jar file to be included in other projects
 or as a war file to be deployed in Tomcat.

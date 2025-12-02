@@ -1,0 +1,3 @@
+rootProject.name = 'vollt'
+include 'ADQLLib', 'UWSLib', 'TAPLib'
+
