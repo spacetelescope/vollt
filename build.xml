@@ -40,7 +40,6 @@
 	<!-- JAVA VERSION COMPATIBILITY -->
 	<property name="ant.build.javac.source" value="1.8"/>
 	<property name="ant.build.javac.target" value="1.8"/>
-
 	<!-- CLASSPATHS -->
 	<path id="adql.classpath">
 		<pathelement location="${POSTGRES}" />
@@ -128,9 +127,7 @@
 
 	<target name="buildLibNoCheck" depends="compileLib" description="After 'clean', build the library JAR (only classes) and the runnable ADQL parser.">
 		<echo>Generate the library:</echo>
-		<jar basedir="${classesDir}" destfile="${libJarFile}" includes="${includesList}" />
-		<echo>Generate the ADQL parser:</echo>
-		<jar basedir="${classesDir}" destfile="${adqlParserJarFile}" filesetmanifest="mergewithoutmain" includes="${includesList}">
+		<jar basedir="${classesDir}" destfile="${libJarFile}" filesetmanifest="mergewithoutmain" includes="${includesList}">
             <manifest>
                 <attribute name="Main-Class" value="adql.parser.ADQLParser"/>
                 <attribute name="Class-Path" value="."/>
