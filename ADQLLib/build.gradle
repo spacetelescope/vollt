@@ -1,0 +1,64 @@
+plugins {
+    id "org.javacc.javacc" version "3.0.0"
+}
+
+// Describe the library:
+version = "2.1-beta"
+description = "Java library to parse, analyze and transform ADQL queries."
+
+// Name of the JAR name (which will be then suffixed by the version number):
+archivesBaseName = "adql"
+distributions {
+    main {
+        distributionBaseName = archivesBaseName
+    }
+}
+
+dependencies {
+    implementation 'uk.ac.starlink:stil:4.2'
+    implementation 'postgresql:postgresql:9.1-901.jdbc4'
+}
+
+// Examples should not be included in any JAR:
+jar {
+    exclude('adql/example/**')
+}
+
+// Add a task to generate a runnable Jar running the command line ADQL parser:
+tasks.register('runnableJar', Jar) {
+    group = 'build'
+    description = 'Assemble a jar archive which can run the ADQL parser in command line.'
+
+    manifest {
+        attributes 'Main-Class': 'adql.parser.ADQLParser'
+    }
+    from sourceSets.main.output
+    exclude('adql/example/**')
+}
+
+/* ##########################################################################
+ * # GRAMMAR CLASSES GENERATION (for ADQL-2.0 and 2.1)                      #
+ * ########################################################################## */
+
+compileJavacc {
+    inputDirectory  = file('src/adql/parser/grammar')
+    outputDirectory = file(project.buildDir.absolutePath + '/generated/adql/parser/grammar')
+    /* Note: the 'generated/' directory is by default included in the classpath
+     *       set up by Gradle. Hence the output directory being this one. */
+    arguments = [grammar_encoding: 'UTF-8', static: 'false']
+}
+
+// Remove generated classes extended and included in 'src/adql/parser/grammar/':
+/* Note: theoretically JavaCC does not re-generate the following files if they
+ *       already exist in the classpath. However, for some reason, the Gradle
+ *       plugin used here is unable to see these files. Hence this custom
+ *       task to remove these generated files. */
+compileJavacc.doLast {
+    delete project.buildDir.absolutePath + '/generated/adql/parser/grammar/ParseException.java'
+    delete project.buildDir.absolutePath + '/generated/adql/parser/grammar/SimpleCharStream.java'
+    delete project.buildDir.absolutePath + '/generated/adql/parser/grammar/Token.java'
+    delete project.buildDir.absolutePath + '/generated/adql/parser/grammar/TokenMgrError.java'
+}
+
+// Ensure the generated Java classes and examples are included in the classpath:
+sourceSets.main.java.srcDirs = ["src", "examples", project.buildDir.absolutePath+'/generated']

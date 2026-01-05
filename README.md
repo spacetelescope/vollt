@@ -1,11 +1,15 @@
-README
-======
+[![License: LGPL v3](https://img.shields.io/badge/License-LGPL_v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
+[![Test ADQLLib](https://github.com/gmantele/vollt/actions/workflows/adqllib.yml/badge.svg)](https://github.com/gmantele/vollt/actions/workflows/adqllib.yml)
+[![Test UWSLib](https://github.com/gmantele/vollt/actions/workflows/uwslib.yml/badge.svg)](https://github.com/gmantele/vollt/actions/workflows/uwslib.yml)
+[![Test TAPLib](https://github.com/gmantele/vollt/actions/workflows/taplib.yml/badge.svg)](https://github.com/gmantele/vollt/actions/workflows/taplib.yml)
 
-Preambule
----------
+# Preamble
 
-This GitHub repository contains the sources of 3 libraries implementing [IVOA](http://www.ivoa.net/ "International Virtual Observatory Alliance") standards and protocols:
-* [ADQL](http://www.ivoa.net/documents/latest/ADQL.html "Astronomical Data Query Language")
+This GitHub repository contains the sources of the library-set named VOLLT. It
+contains 3 libraries implementing [IVOA](http://www.ivoa.net/ "International Virtual Observatory Alliance")
+standards and protocols:
+
+* [ADQL-2.1](http://www.ivoa.net/documents/ADQL/20180112/index.html "Astronomical Data Query Language")
 * [UWS-1.1](http://www.ivoa.net/documents/UWS/20161024/index.html "Universal Worker Service pattern")
 * [TAP](http://www.ivoa.net/documents/TAP/ "Table Access Protocol")
 
@@ -88,5 +92,5 @@ All of these ANT scripts have the following main targets:
 * `buildAll`: equivalent of `buildLibAndSrc` and `buildJavadoc` together. The result is 3 JARs: one with the compiled classes, one with the corresponding sources and the last one with the Javadoc.
 
 ### Gradle build
-The code can be built with Gradle, either as a jar file to be included in other projects 
+The code can be built with Gradle, either as a jar file to be included in other projects
 or as a war file to be deployed in Tomcat.
