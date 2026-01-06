@@ -3,7 +3,7 @@ plugins {
 }
 
 // Describe the library:
-version = "2.1-beta"
+version = "2.1"
 description = "Java library to parse, analyze and transform ADQL queries."
 
 // Name of the JAR name (which will be then suffixed by the version number):
