@@ -349,6 +349,24 @@ public class MAST_Geometry_SQLServerTranslator extends SQLServerTranslator {
 				sql.append('\n').append(geomReplace);
 			}
 			
+			// check if we need to apply OFFSET
+			final boolean withOffset = (query.getOffset() != null && query.getOffset().getValue() > 0);
+			if (withOffset) {
+				// ORDER BY should have been handled above already, but check since it's required for OFFSET
+				if (query.getOrderBy().isEmpty()) {
+					sql.append("\nORDER BY 1 ASC"); // default order by first column
+				}
+				
+				// Append OFFSET
+				sql.append("\nOFFSET ").append(query.getOffset().getValue()).append(" ROWS");
+				
+				// With OFFSET, FETCH NEXT is required to limit the number of rows returned
+				if (query.hasLimit()) {
+					sql.append(" FETCH NEXT ").append(query.getLimit()).append(" ROWS ONLY");
+				}
+			}
+			
+			
 			String sqlString = sql.toString();
 			return QualifyUserFunctionNames(sqlString);
 		} 
