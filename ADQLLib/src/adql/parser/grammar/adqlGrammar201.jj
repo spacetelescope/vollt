@@ -249,6 +249,16 @@ TOKEN : {
 |	< DIVIDE: "/" >
 }
 
+/* **************** */
+/* Binary operators */
+/* **************** */
+TOKEN : {
+	< BIT_AND: "&" >
+|	< BIT_OR: "|" >
+|	< BIT_XOR: "^" >
+|	< BIT_NOT: "~" >
+}
+
 /* ******************** */
 /* Comparison operators */
 /* ******************** */

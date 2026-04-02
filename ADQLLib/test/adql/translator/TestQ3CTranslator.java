@@ -24,20 +24,41 @@ public class TestQ3CTranslator {
 	private List<DBTable> tables = null;
 
 	@Before
-	public void setUp() throws Exception{
+	public void setUp() throws Exception {
 		tables = new ArrayList<DBTable>(2);
 		DefaultDBTable t = new DefaultDBTable("aTable");
 		t.addColumn(new DefaultDBColumn("id", t));
 		t.addColumn(new DefaultDBColumn("name", t));
 		t.addColumn(new DefaultDBColumn("ra", t));
-        t.addColumn(new DefaultDBColumn("dec", t));
+		t.addColumn(new DefaultDBColumn("dec", t));
 		tables.add(t);
 		t = new DefaultDBTable("bTable");
 		t.addColumn(new DefaultDBColumn("id", t));
 		t.addColumn(new DefaultDBColumn("name", t));
 		t.addColumn(new DefaultDBColumn("ra", t));
-        t.addColumn(new DefaultDBColumn("dec", t));
+		t.addColumn(new DefaultDBColumn("dec", t));
 		tables.add(t);
+	}
+
+	@Test
+	public void testBitOperator() {
+		// Test a bit operator parses. Query should have no change.
+
+		try{
+			String adqlquery = "SELECT infoFlag & 1 from ps1_dr2.detection limit 10;";
+
+            ADQLParser parser = new ADQLParser(ADQLVersion.V2_1, new DBChecker(tables), new ADQLQueryFactory(), null);
+            ADQLSet query = parser.parseQuery(adqlquery);
+			Q3CTranslator translator = new Q3CTranslator();
+            assertTrue(translator.translate(query).contains(adqlquery));
+
+		}catch(ParseException pe){
+			pe.printStackTrace();
+			fail("The given ADQL query is completely correct. No error should have occurred while parsing it. (see the console for more details)");
+		}catch(TranslationException te){
+			te.printStackTrace();
+			fail("No error was expected from this translation. (see the console for more details)");
+		}
 	}
 
     @Test
