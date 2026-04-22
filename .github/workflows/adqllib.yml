@@ -17,3 +17,9 @@ jobs:
         uses: gradle/gradle-build-action@v2
       - name: Run build with Gradle Wrapper
         run: ./gradlew :ADQLLib:test
+      - name: Upload Logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failure-logs
+          path: ADQLLib/build/reports/tests/test/index.html
