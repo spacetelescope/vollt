@@ -48,7 +48,7 @@ public class TestSQLServerTranslator {
 	}
 
 	@Test
-    public void testExtraParenOperandsPgSphere21() {
+    public void testExtraParenOperandsSQLServer21() {
         // MAST TAP based on ADQL 2.1 branch is incorrectly applying parens in arithmetic statements with >2 items.
         // This is causing incorrect results for negative values. Testing where this fails in upstream branches.
         try {
