@@ -2,6 +2,7 @@ package adql.translator;
 
 import static adql.translator.TestJDBCTranslator.countFeatures;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -45,6 +46,25 @@ public class TestSQLServerTranslator {
 		t.addColumn(new DefaultDBColumn("anotherColumn", t));
 		tables.add(t);
 	}
+
+	@Test
+    public void testExtraParenOperandsPgSphere21() {
+        // MAST TAP based on ADQL 2.1 branch is incorrectly applying parens in arithmetic statements with >2 items.
+        // This is causing incorrect results for negative values. Testing where this fails in upstream branches.
+        try {
+            ADQLParser parser = new ADQLParser(ADQLVersion.V2_1);
+            SQLServerTranslator translator = new SQLServerTranslator();
+            ADQLSet query = parser.parseQuery("SELECT (FOO-1-2) FROM BAR");
+            System.out.println(translator.translate(query));
+            assertFalse(translator.translate(query).contains("((FOO-(1-2))"));
+        } catch(ParseException pe) {
+            pe.printStackTrace();
+            fail("The given ADQL query is completely correct. No error should have occurred while parsing it. (see the console for more details)");
+        } catch (TranslationException te) {
+            te.printStackTrace();
+            fail("No error was expected from this translation. (see the console for more details)");
+        }
+    }
 
 	@Test
 	public void testTranslateSetOperation() {
