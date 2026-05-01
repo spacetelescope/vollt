@@ -59,6 +59,24 @@ public class TestJDBCTranslator {
 	public void setUp() throws Exception {
 	}
 
+    @Test
+    public void testExtraParenOperandsIn21() {
+        // Testing a bug introduced upstream in 2.1 has not regressed.
+        // It added parens, changing query logic in cases with multiple negative values.
+        try {
+            ADQLParser parser = new ADQLParser(ADQLVersion.V2_1);
+            JDBCTranslator translator = new AJDBCTranslator();
+            ADQLSet query = parser.parseQuery("SELECT (1-2-3) FROM BAR");
+            assertTrue(translator.translate(query).contains("(1-2-3)"));
+        } catch(ParseException pe) {
+            pe.printStackTrace();
+            fail("The given ADQL query is completely correct. No error should have occurred while parsing it. (see the console for more details)");
+        } catch (TranslationException te) {
+            te.printStackTrace();
+            fail("No error was expected from this translation. (see the console for more details)");
+        }
+    }
+
 	@Test
 	public void testTranslateSetOperation() {
 		JDBCTranslator tr = new AJDBCTranslator();
