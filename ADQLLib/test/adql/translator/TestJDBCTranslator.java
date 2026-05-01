@@ -67,8 +67,8 @@ public class TestJDBCTranslator {
         try {
             ADQLParser parser = new ADQLParser(ADQLVersion.V2_1);
             JDBCTranslator translator = new AJDBCTranslator();
-            ADQLSet query = parser.parseQuery("SELECT (FOO-1-2) FROM BAR");
-            assertTrue(translator.translate(query).contains("(FOO-1-2)"));
+            ADQLSet query = parser.parseQuery("SELECT (1-2-3) FROM BAR");
+            assertTrue(translator.translate(query).contains("(1-2-3)"));
         } catch(ParseException pe) {
             pe.printStackTrace();
             fail("The given ADQL query is completely correct. No error should have occurred while parsing it. (see the console for more details)");
