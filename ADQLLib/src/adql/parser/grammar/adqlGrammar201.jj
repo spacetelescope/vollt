@@ -1087,8 +1087,8 @@ ADQLOperand NumericExpression(): { Token operator = null; ADQLOperand leftOp, ri
 	}
 }
 
-ADQLOperand NumericExpression(): {Token sign=null; ADQLOperand leftOp, rightOp=null;} {
-	(leftOp=NumericTerm() ((sign=<PLUS> | sign=<MINUS>) rightOp=NumericExpression())?)
+ADQLOperand NumericTerm(): {Token sign=null; ADQLOperand leftOp, rightOp=null;} {
+	(leftOp=Term() ((sign=<PLUS> | sign=<MINUS>) rightOp=NumericTerm())?)
 	{
 	if (sign == null)
 		return leftOp;
