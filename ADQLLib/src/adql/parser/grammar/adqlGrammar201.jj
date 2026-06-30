@@ -1071,7 +1071,7 @@ ADQLOperand ValueExpression(): {ADQLOperand valueExpr = null; Token left, right;
 
 /* bitwise operators reintroduced for MAST functionality */
 ADQLOperand NumericExpression(): { Token operator = null; ADQLOperand leftOp, rightOp = null; } {
-	(leftOp=NumericTerm() ((operator=<BIT_AND> | operator=<BIT_OR> | operator=<BIT_XOR>) rightOp=NumericExpression())?)
+	(leftOp=NumericTerm() (((operator=<PLUS> | operator=<MINUS>) | operator=<BIT_AND> | operator=<BIT_OR> | operator=<BIT_XOR>) rightOp=NumericExpression())?)
 	{
 		if (operator == null)
 			return leftOp;
@@ -1084,23 +1084,6 @@ ADQLOperand NumericExpression(): { Token operator = null; ADQLOperand leftOp, ri
 				throw generateParseException(ex);
 			}
 		}
-	}
-}
-
-ADQLOperand NumericTerm(): {Token sign=null; ADQLOperand leftOp, rightOp=null;} {
-	(leftOp=Term() ((sign=<PLUS> | sign=<MINUS>) rightOp=NumericTerm())?)
-	{
-	if (sign == null)
-		return leftOp;
-	else{
-		try{
-			Operation operation = queryFactory.createOperation(leftOp, OperationType.getOperator(sign.image), rightOp);
-			operation.setPosition(new TextPosition(leftOp.getPosition(), rightOp.getPosition()));
-			return operation;
-		}catch(Exception ex){
-			throw generateParseException(ex);
-		}
-	}
 	}
 }
 
