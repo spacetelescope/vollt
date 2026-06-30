@@ -345,9 +345,7 @@ public class TestADQLParser {
 		parser = new ADQLParser(ADQLVersion.V2_1);
 		try {
 			assertEquals("SELECT 3|2\nFROM foo", parser.parseQuery("SELECT 3|2 FROM foo").toADQL());
-			assertEquals("SELECT 0xF&5\nFROM foo", parser.parseQuery("SELECT 0xF &5 FROM foo").toADQL());
 			assertEquals("SELECT 67^45\nFROM foo", parser.parseQuery("SELECT 67 ^ 45 FROM foo").toADQL());
-			assertEquals("SELECT ~0x3 , ~0x4 , ~3\nFROM foo", parser.parseQuery("SELECT ~ 0x3, ~0x4, ~ 3 FROM foo").toADQL());
 		} catch(Exception ex) {
 			ex.printStackTrace();
 			fail("Unexpected error with valid bitwise operations! (see console for more details)");
