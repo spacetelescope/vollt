@@ -57,6 +57,7 @@ import adql.query.from.ADQLTable;
 import adql.query.from.FromContent;
 import adql.query.operand.ADQLColumn;
 import adql.query.operand.ADQLOperand;
+import adql.query.operand.BitNotOperand;
 import adql.query.operand.Concatenation;
 import adql.query.operand.NegativeOperand;
 import adql.query.operand.NumericConstant;
@@ -734,6 +735,8 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 			return translate((Concatenation)op);
 		else if (op instanceof NegativeOperand)
 			return translate((NegativeOperand)op);
+		else if (op instanceof BitNotOperand)
+			return translate((BitNotOperand)op);		
 		else if (op instanceof NumericConstant)
 			return translate((NumericConstant)op);
 		else if (op instanceof StringConstant)
@@ -780,6 +783,12 @@ public abstract class JDBCTranslator implements ADQLTranslator {
 	@Override
 	public String translate(NegativeOperand negOp) throws TranslationException {
 		return "-" + translate(negOp.getOperand());
+	}
+
+	@Override
+	/* bitwise operators reintroduced for MAST functionality */
+	public String translate(BitNotOperand bitNotOp) throws TranslationException {
+		return "(~" + translate(bitNotOp.getOperand()) + ")";
 	}
 
 	@Override

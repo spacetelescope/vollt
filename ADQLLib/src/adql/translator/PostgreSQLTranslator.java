@@ -27,6 +27,8 @@ import adql.parser.feature.FeatureSet;
 import adql.parser.feature.LanguageFeature;
 import adql.parser.grammar.ParseException;
 import adql.query.IdentifierField;
+import adql.query.operand.Operation;
+import adql.query.operand.OperationType;
 import adql.query.operand.StringConstant;
 import adql.query.operand.function.ADQLFunction;
 import adql.query.operand.function.InUnitFunction;
@@ -179,6 +181,15 @@ public class PostgreSQLTranslator extends JDBCTranslator {
 	}
 
 	@Override
+	public String translate(Operation op) throws TranslationException {
+		if (op.getOperation() == OperationType.BIT_XOR)
+			return "(" + translate(op.getLeftOperand()) + " # " + translate(op.getRightOperand()) + ")";
+		else
+			return super.translate(op);
+	}
+
+	@Override
+	 /* bitwise operators reintroduced for MAST functionality */
 	public String translate(MathFunction fct) throws TranslationException {
 		switch(fct.getType()) {
 			case LOG:
