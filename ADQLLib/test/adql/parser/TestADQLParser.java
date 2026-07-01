@@ -353,7 +353,22 @@ public class TestADQLParser {
 			fail("Unexpected error with valid bitwise operations! (see console for more details)");
 		}
 	}
+	
+	@Test
+	 /* bitwise operators reintroduced for MAST functionality, including hex support */
+	public void testHexadecimal() {
 
+		ADQLParser parser = new ADQLParser(ADQLVersion.V2_1);
+		try {
+			assertEquals("SELECT 0xF\nFROM foo", parser.parseQuery("SELECT 0xF FROM foo").toADQL());
+			assertEquals("SELECT 0xF*2\nFROM foo", parser.parseQuery("SELECT 0xF*2 FROM foo").toADQL());
+			assertEquals("SELECT -0xF\nFROM foo", parser.parseQuery("SELECT -0xF FROM foo").toADQL());
+		} catch(Exception ex) {
+			ex.printStackTrace();
+			fail("Unexpected error with valid hexadecimal values! (see console for more details)");
+		}
+	}
+	
 	@Test
 	public void testOffset() {
 
