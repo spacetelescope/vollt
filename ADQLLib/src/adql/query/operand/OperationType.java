@@ -34,7 +34,11 @@ public enum OperationType {
 	SUM,
 	SUB,
 	MULT,
-	DIV;
+	DIV,
+	 /* bitwise operators reintroduced @since 2.1 for MAST functionality */
+	BIT_AND,
+	BIT_OR,
+	BIT_XOR;
 
 	/** Description of the ADQL Feature based on this type.
 	 * @since 2.0 */
@@ -42,7 +46,10 @@ public enum OperationType {
 
 	/** @since 2.0 */
 	private OperationType() {
-		FEATURE = new LanguageFeature(null, this.name(), false);
+		if (this.name().startsWith("BIT_"))
+			FEATURE = new LanguageFeature(LanguageFeature.TYPE_ADQL_BITWISE, this.name(), true);
+		else
+			FEATURE = new LanguageFeature(null, this.name(), false);
 	}
 
 	/**
@@ -64,7 +71,8 @@ public enum OperationType {
 	}
 
 	public static String[] getOperators() {
-		return new String[]{ SUM.toString(), SUB.toString(), MULT.toString(), DIV.toString() };
+		return new String[]{ SUM.toString(), SUB.toString(), MULT.toString(), DIV.toString(),
+			BIT_AND.toString(), BIT_OR.toString(), BIT_XOR.toString() };
 	}
 
 	public static OperationType getOperator(String str) throws UnsupportedOperationException {
@@ -76,6 +84,12 @@ public enum OperationType {
 			return MULT;
 		else if (str.equalsIgnoreCase("/"))
 			return DIV;
+		else if (str.equalsIgnoreCase("&"))
+			return BIT_AND;
+		else if (str.equalsIgnoreCase("|"))
+			return BIT_OR;
+		else if (str.equalsIgnoreCase("^"))
+			return BIT_XOR;
 		else
 			throw new UnsupportedOperationException("Numeric operation unknown: \"" + str + "\" !");
 	}
@@ -95,6 +109,12 @@ public enum OperationType {
 				return "*";
 			case DIV:
 				return "/";
+			case BIT_AND:
+				return "&";
+			case BIT_OR:
+				return "|";
+			case BIT_XOR:
+				return "^";				
 			default:
 				return "???";
 		}

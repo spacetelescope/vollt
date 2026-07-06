@@ -31,6 +31,10 @@ import adql.query.SetOperationType;
 import adql.query.WithItem;
 import adql.query.from.ADQLJoin;
 import adql.query.from.ADQLTable;
+import adql.query.operand.ADQLOperand;
+import adql.query.operand.BitNotOperand;
+import adql.query.operand.Operation;
+import adql.query.operand.OperationType;
 import adql.query.operand.StringConstant;
 import adql.query.operand.function.geometry.CircleFunction;
 import adql.query.operand.function.geometry.ContainsFunction;
@@ -323,6 +327,48 @@ public class TestADQLParser {
 		}
 	}
 
+	@Test
+	 /* bitwise operators reintroduced for MAST functionality */
+	public void testBitwiseOperation() {
+
+		// CASE: No bitwise operation in ADQL-2.0
+		ADQLParser parser = new ADQLParser(ADQLVersion.V2_0);
+		try {
+			parser.parseQuery("SELECT 3|2 FROM foo");
+			fail("Bitwise operations should not be allowed with ADQL-2.0!");
+		} catch(Exception ex) {
+			assertEquals(ParseException.class, ex.getClass());
+			assertEquals(" Encountered \"|\". Was expecting one of: \",\" \"FROM\" \"AS\" \"\\\"\" <REGULAR_IDENTIFIER_CANDIDATE> " + System.getProperty("line.separator", "\n") + "(HINT: \"|\" bitwise operations are not supported in ADQL-2.0. You should migrate your ADQL parser to support at least ADQL-2.1.)", ex.getMessage());
+		}
+
+		// CASE: Bitwise operations allowed in ADQL-2.1
+		parser = new ADQLParser(ADQLVersion.V2_1);
+		try {
+			assertEquals("SELECT 3|2\nFROM foo", parser.parseQuery("SELECT 3|2 FROM foo").toADQL());
+			assertEquals("SELECT 0xF&5\nFROM foo", parser.parseQuery("SELECT 0xF &5 FROM foo").toADQL());
+			assertEquals("SELECT 67^45\nFROM foo", parser.parseQuery("SELECT 67 ^ 45 FROM foo").toADQL());
+			assertEquals("SELECT ~0x3 , ~0x4 , ~3\nFROM foo", parser.parseQuery("SELECT ~ 0x3, ~0x4, ~ 3 FROM foo").toADQL());
+		} catch(Exception ex) {
+			ex.printStackTrace();
+			fail("Unexpected error with valid bitwise operations! (see console for more details)");
+		}
+	}
+	
+	@Test
+	 /* bitwise operators reintroduced for MAST functionality, including hex support */
+	public void testHexadecimal() {
+
+		ADQLParser parser = new ADQLParser(ADQLVersion.V2_1);
+		try {
+			assertEquals("SELECT 0xF\nFROM foo", parser.parseQuery("SELECT 0xF FROM foo").toADQL());
+			assertEquals("SELECT 0xF*2\nFROM foo", parser.parseQuery("SELECT 0xF*2 FROM foo").toADQL());
+			assertEquals("SELECT -0xF\nFROM foo", parser.parseQuery("SELECT -0xF FROM foo").toADQL());
+		} catch(Exception ex) {
+			ex.printStackTrace();
+			fail("Unexpected error with valid hexadecimal values! (see console for more details)");
+		}
+	}
+	
 	@Test
 	public void testOffset() {
 

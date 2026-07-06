@@ -260,6 +260,11 @@ public class ADQLQueryFactory {
 		return new NegativeOperand(opToNegativate);
 	}
 
+	/* bitwise operators reintroduced for MAST functionality */
+	public BitNotOperand createBitNotOperand(ADQLOperand operandToBitNot) throws Exception {
+		return new BitNotOperand(operandToBitNot);
+	}
+
 	public Concatenation createConcatenation() throws Exception {
 		return new Concatenation();
 	}
