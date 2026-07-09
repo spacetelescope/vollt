@@ -303,6 +303,9 @@ public final class LanguageFeature {
 	/** Root IVOID for all the TAPRegExt's language features. */
 	public final static String IVOID_TAP_REGEXT = "ivo://ivoa.net/std/TAPRegExt";
 
+	/** Root IVOID for custom MAST language features. */
+	public final static String IVOID_MAST_REGEXT = "ivo://edu.stsci.archive/std/exts";
+
 	/** User Defined Functions. */
 	public final static String TYPE_UDF = IVOID_TAP_REGEXT + "#features-udf";
 
@@ -328,7 +331,7 @@ public final class LanguageFeature {
 	public final static String TYPE_ADQL_UNIT = IVOID_TAP_REGEXT + "#features-adql-unit";
 
 	/** Bit manipulation functions. */
-	public final static String TYPE_ADQL_BITWISE = IVOID_TAP_REGEXT + "#features-adql-bitwise";
+	public final static String TYPE_ADQL_BITWISE = IVOID_MAST_REGEXT + "#features-adql-bitwise";
 
 	/** Query result offset. */
 	public final static String TYPE_ADQL_OFFSET = IVOID_TAP_REGEXT + "#features-adql-offset";
