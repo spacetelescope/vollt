@@ -92,4 +92,25 @@ public class TestQ3CTranslator {
 			fail("No error was expected from this translation. (see the console for more details)");
 		}
 	}
+	
+	@Test
+	public void testPointsDistanceMAST() {
+		try {
+			String adqlquery = "SELECT top 1 * FROM aTable WHERE DISTANCE(POINT('ICRS', 187.11, 11.58), POINT('ICRS', 187.15, 12)) < 0.5";
+
+			ADQLParser parser = new ADQLParser(ADQLVersion.V2_1, new DBChecker(tables), new ADQLQueryFactory(), null);
+			ADQLSet query = parser.parseQuery(adqlquery);
+			MAST_Q3CTranslator translator = new MAST_Q3CTranslator();
+
+			assertTrue(translator.translate(query).contains("q3c_join(187.11,11.58,187.15,12,0.5) = 1"));
+
+		} catch (ParseException pe) {
+			pe.printStackTrace();
+			fail("The given ADQL query is completely correct. No error should have occurred while parsing it. (see the console for more details)");
+		} catch (TranslationException te) {
+			te.printStackTrace();
+			fail("No error was expected from this translation. (see the console for more details)");
+
+		}
+	}
 }
