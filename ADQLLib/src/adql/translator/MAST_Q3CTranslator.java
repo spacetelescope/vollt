@@ -32,7 +32,6 @@ public class MAST_Q3CTranslator extends Q3CTranslator {
         str.append(translate(fct.getP2())).append(",");
         str.append(radius);
         str.append(")");
-        str.append(" = 1"); 
         return str.toString();
     }
 
@@ -48,19 +47,7 @@ public class MAST_Q3CTranslator extends Q3CTranslator {
 
     @Override
     public String translate(Comparison comp) throws TranslationException {
-        if ((comp.getLeftOperand() instanceof ContainsFunction || comp.getLeftOperand() instanceof IntersectsFunction)
-                &&
-                (comp.getOperator() == ComparisonOperator.EQUAL || comp.getOperator() == ComparisonOperator.NOT_EQUAL)
-                && comp.getRightOperand().isNumeric())
-            return translate(comp.getLeftOperand()) + " " + comp.getOperator().toADQL() + " '"
-                    + translate(comp.getRightOperand()) + "'";
-        else if ((comp.getRightOperand() instanceof ContainsFunction
-                || comp.getRightOperand() instanceof IntersectsFunction)
-                && (comp.getOperator() == ComparisonOperator.EQUAL || comp.getOperator() == ComparisonOperator.NOT_EQUAL)
-                && comp.getLeftOperand().isNumeric())
-            return "'" + translate(comp.getLeftOperand()) + "' " + comp.getOperator().toADQL() + " "
-                    + translate(comp.getRightOperand());
-        else if ((comp.getLeftOperand() instanceof DistanceFunction)
+        if ((comp.getLeftOperand() instanceof DistanceFunction)
                 && (comp.getOperator() == ComparisonOperator.LESS_THAN || comp.getOperator() == ComparisonOperator.LESS_OR_EQUAL)
                 && comp.getRightOperand().isNumeric())
             return translate((DistanceFunction) comp.getLeftOperand(), translate(comp.getRightOperand()).toString());
