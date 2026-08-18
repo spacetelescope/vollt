@@ -8,9 +8,8 @@ import adql.query.operand.function.geometry.IntersectsFunction;
 
 /**
  * MAST-specific Postgres/Q3C translator.
- *
- * This class intentionally keeps the default Q3C behavior in place until the
- * MAST-specific DISTANCE/CONTAINS/INTERSECTS semantics are implemented.
+ * 
+ * Uses q3c_join() instead of default q3c_dist() for distance comparisons.
  */
 public class MAST_Q3CTranslator extends Q3CTranslator {
 
