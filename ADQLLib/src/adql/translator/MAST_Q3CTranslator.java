@@ -35,16 +35,6 @@ public class MAST_Q3CTranslator extends Q3CTranslator {
     }
 
     @Override
-    public String translate(ContainsFunction fct) throws TranslationException {
-        return super.translate(fct);
-    }
-
-    @Override
-    public String translate(IntersectsFunction fct) throws TranslationException {
-        return super.translate(fct);
-    }
-
-    @Override
     public String translate(Comparison comp) throws TranslationException {
         if ((comp.getLeftOperand() instanceof DistanceFunction)
                 && (comp.getOperator() == ComparisonOperator.LESS_THAN || comp.getOperator() == ComparisonOperator.LESS_OR_EQUAL)
