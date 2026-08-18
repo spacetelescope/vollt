@@ -31,7 +31,6 @@ public class MAST_Q3CTranslator extends Q3CTranslator {
         str.append(translate(fct.getP2())).append(",");
         str.append(radius);
         str.append(")");
-        str.append(" = 1"); 
         return str.toString();
     }
 

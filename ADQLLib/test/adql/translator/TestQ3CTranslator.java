@@ -102,7 +102,7 @@ public class TestQ3CTranslator {
 			ADQLSet query = parser.parseQuery(adqlquery);
 			MAST_Q3CTranslator translator = new MAST_Q3CTranslator();
 
-			assertTrue(translator.translate(query).contains("q3c_join(187.11,11.58,187.15,12,0.5) = 1"));
+			assertTrue(translator.translate(query).contains("q3c_join(187.11,11.58,187.15,12,0.5)"));
 
 		} catch (ParseException pe) {
 			pe.printStackTrace();
