@@ -1,5 +1,6 @@
 package adql.translator;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -102,7 +103,12 @@ public class TestQ3CTranslator {
 			ADQLSet query = parser.parseQuery(adqlquery);
 			MAST_Q3CTranslator translator = new MAST_Q3CTranslator();
 
-			assertTrue(translator.translate(query).contains("q3c_join(187.11,11.58,187.15,12,0.5)"));
+			assertEquals(
+			"SELECT aTable.id AS \"id\" , aTable.name AS \"name\" , aTable.ra AS \"ra\" , aTable.dec AS \"dec\"\n"+
+			"FROM aTable\n" +
+			"WHERE q3c_join(187.11,11.58,187.15,12,0.5)\n" +
+			"LIMIT 1", translator.translate(query));
+			
 
 		} catch (ParseException pe) {
 			pe.printStackTrace();
