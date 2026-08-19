@@ -39,11 +39,11 @@ public class MAST_Q3CTranslator extends Q3CTranslator {
         if ((comp.getLeftOperand() instanceof DistanceFunction)
                 && (comp.getOperator() == ComparisonOperator.LESS_THAN || comp.getOperator() == ComparisonOperator.LESS_OR_EQUAL)
                 && comp.getRightOperand().isNumeric())
-            return translate((DistanceFunction) comp.getLeftOperand(), translate(comp.getRightOperand()).toString());
+            return translate((DistanceFunction) comp.getLeftOperand(), translate(comp.getRightOperand()));
         else if ((comp.getRightOperand() instanceof DistanceFunction)
                 && (comp.getOperator() == ComparisonOperator.LESS_THAN || comp.getOperator() == ComparisonOperator.LESS_OR_EQUAL)
                 && comp.getLeftOperand().isNumeric())
-            return translate((DistanceFunction) comp.getRightOperand(), translate(comp.getLeftOperand()).toString());
+            return translate((DistanceFunction) comp.getRightOperand(), translate(comp.getLeftOperand()));
         else
             return super.translate(comp);
     }
