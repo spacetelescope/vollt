@@ -97,7 +97,7 @@ public class TestQ3CTranslator {
 	@Test
 	public void testPointsDistanceMAST() {
 		try {
-			String adqlquery = "SELECT top 1 * FROM aTable WHERE DISTANCE(POINT('ICRS', 187.11, 11.58), POINT('ICRS', 187.15, 12)) < 0.5";
+			String adqlquery = "SELECT top 1 * FROM aTable WHERE DISTANCE(POINT('ICRS', 187.11, 11.58), POINT('ICRS', 187.15, 12)) <= 0.5";
 
 			ADQLParser parser = new ADQLParser(ADQLVersion.V2_1, new DBChecker(tables), new ADQLQueryFactory(), null);
 			ADQLSet query = parser.parseQuery(adqlquery);
