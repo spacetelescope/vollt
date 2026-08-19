@@ -119,4 +119,44 @@ public class TestQ3CTranslator {
 
 		}
 	}
+	
+	@Test
+	public void testMASTCrossmatch(){
+    // Same crossmatch query as testCrossmatch(), but using <= so that
+    // MAST_Q3CTranslator uses q3c_join() instead of q3c_dist().
+    try{
+        String adqlquery = 
+			"SELECT TOP 100 geo_aTable.*, bTable.* " +
+			"FROM (" +
+			"    SELECT * FROM aTable" +
+			"    WHERE DISTANCE(POINT('ICRS', 187.11, 11.58), POINT('ICRS', ra, dec)) <= 0.5 )" +
+			"    AS geo_aTable " +
+			"JOIN bTable ON " +
+			"    DISTANCE(POINT('ICRS', geo_aTable.ra, geo_aTable.dec), POINT('ICRS', bTable.ra, bTable.dec)) <= 0.01";
+
+        ADQLParser parser = new ADQLParser(ADQLVersion.V2_1);
+        parser.setQueryChecker(new DBChecker(tables));
+
+        ADQLSet query = parser.parseQuery(adqlquery);
+        MAST_Q3CTranslator translator = new MAST_Q3CTranslator();
+
+        String translated = translator.translate(query);
+		
+		String expectedQuery = 
+		"SELECT geo_atable.id AS \"id\" , geo_atable.name AS \"name\" , geo_atable.ra AS \"ra\" , geo_atable.dec AS \"dec\" , bTable.id AS \"id\" , bTable.name AS \"name\" , bTable.ra AS \"ra\" , bTable.dec AS \"dec\"\n" +
+		"FROM (SELECT aTable.id AS \"id\" , aTable.name AS \"name\" , aTable.ra AS \"ra\" , aTable.dec AS \"dec\"\n"+
+		"FROM aTable\n" +
+		"WHERE q3c_join(187.11,11.58,aTable.ra,aTable.dec,0.5)) AS \"geo_atable\" INNER JOIN bTable ON q3c_join(geo_atable.ra,geo_atable.dec,bTable.ra,bTable.dec,0.01)\n"+
+		"LIMIT 100";
+		
+		assertEquals(expectedQuery, translated);
+
+    }catch(ParseException pe){
+        pe.printStackTrace();
+        fail("The given ADQL query is completely correct. No error should have occurred while parsing it. (see the console for more details)");
+    }catch(TranslationException te){
+        te.printStackTrace();
+        fail("No error was expected from this translation. (see the console for more details)");
+    }
+}
 }
