@@ -10,6 +10,11 @@ import adql.query.operand.function.geometry.IntersectsFunction;
  * MAST-specific Postgres/Q3C translator.
  * 
  * Uses q3c_join() instead of default q3c_dist() for distance comparisons.
+ * 
+ * Note: q3c_join() is boundary-inclusive, so {@code <=} only is supported.
+ * {@code <} comparisons default to the q3c_dist() implementation in the parent class.
+ * However, in practice, the odds of a point being exactly on the boundary are extremely low, so this should not be an issue.
+ * 
  */
 public class MAST_Q3CTranslator extends Q3CTranslator {
 
@@ -37,11 +42,11 @@ public class MAST_Q3CTranslator extends Q3CTranslator {
     @Override
     public String translate(Comparison comp) throws TranslationException {
         if ((comp.getLeftOperand() instanceof DistanceFunction)
-                && (comp.getOperator() == ComparisonOperator.LESS_THAN || comp.getOperator() == ComparisonOperator.LESS_OR_EQUAL)
+                && (comp.getOperator() == ComparisonOperator.LESS_OR_EQUAL)
                 && comp.getRightOperand().isNumeric())
             return translate((DistanceFunction) comp.getLeftOperand(), translate(comp.getRightOperand()));
         else if ((comp.getRightOperand() instanceof DistanceFunction)
-                && (comp.getOperator() == ComparisonOperator.LESS_THAN || comp.getOperator() == ComparisonOperator.LESS_OR_EQUAL)
+                && (comp.getOperator() == ComparisonOperator.LESS_OR_EQUAL)
                 && comp.getLeftOperand().isNumeric())
             return translate((DistanceFunction) comp.getRightOperand(), translate(comp.getLeftOperand()));
         else
