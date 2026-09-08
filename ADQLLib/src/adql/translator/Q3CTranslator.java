@@ -43,6 +43,11 @@ import adql.query.operand.function.geometry.PolygonFunction;
  * 	class. The other functions are managed by {@link PostgreSQLTranslator}.
  * </p>
  *
+ * <p>
+ * 	{@code DISTANCE(...) <= radius} comparisons are translated to the q3c_join() function,
+ *  which is faster for JOIN clauses. All other distance comparisons use q3c_dist().
+ * </p>
+ *
  * @author Gr&eacute;gory Mantelet (CDS;ARI) / Theresa Dower (STScI)
  * @version 1.5 (2025)
  */
@@ -152,6 +157,21 @@ public class Q3CTranslator extends PostgreSQLTranslator {
 		return str.toString();
 	}
 
+	/**
+	 * Translate a {@link DistanceFunction} with a radius comparison into a q3c_join() call.
+	 *
+	 * <p>q3c_join() is boundary-inclusive and is used only for
+	 * {@code DISTANCE(...) <= radius} comparisons.</p>
+	 */
+	public String translate(DistanceFunction fct, final String radius) throws TranslationException{
+		StringBuffer str = new StringBuffer("q3c_join(");
+		str.append(translate(fct.getP1())).append(",");
+		str.append(translate(fct.getP2())).append(",");
+		str.append(radius);
+		str.append(")");
+		return str.toString();
+	}
+
 	@Override
 	public String translate(ContainsFunction fct) throws TranslationException{
 		StringBuffer str = new StringBuffer("q3c_radial_query(");
@@ -172,6 +192,10 @@ public class Q3CTranslator extends PostgreSQLTranslator {
 			return translate(comp.getLeftOperand()) + " " + comp.getOperator().toADQL() + " '" + translate(comp.getRightOperand()) + "'";
 		else if ((comp.getRightOperand() instanceof ContainsFunction || comp.getRightOperand() instanceof IntersectsFunction) && (comp.getOperator() == ComparisonOperator.EQUAL || comp.getOperator() == ComparisonOperator.NOT_EQUAL) && comp.getLeftOperand().isNumeric())
 			return "'" + translate(comp.getLeftOperand()) + "' " + comp.getOperator().toADQL() + " " + translate(comp.getRightOperand());
+		else if ((comp.getLeftOperand() instanceof DistanceFunction) && (comp.getOperator() == ComparisonOperator.LESS_OR_EQUAL) && comp.getRightOperand().isNumeric())
+			return translate((DistanceFunction) comp.getLeftOperand(), translate(comp.getRightOperand()));
+		else if ((comp.getRightOperand() instanceof DistanceFunction) && (comp.getOperator() == ComparisonOperator.LESS_OR_EQUAL) && comp.getLeftOperand().isNumeric())
+			return translate((DistanceFunction) comp.getRightOperand(), translate(comp.getLeftOperand()));
 		else
 			return super.translate(comp);
 	}
