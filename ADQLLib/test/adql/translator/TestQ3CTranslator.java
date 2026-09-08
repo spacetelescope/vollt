@@ -95,13 +95,13 @@ public class TestQ3CTranslator {
 	}
 	
 	@Test
-	public void testPointsDistanceMAST() {
+	public void testPointsDistanceLessOrEqual() {
 		try {
 			String adqlquery = "SELECT top 1 * FROM aTable WHERE DISTANCE(POINT('ICRS', 187.11, 11.58), POINT('ICRS', 187.15, 12)) <= 0.5";
 
 			ADQLParser parser = new ADQLParser(ADQLVersion.V2_1, new DBChecker(tables), new ADQLQueryFactory(), null);
 			ADQLSet query = parser.parseQuery(adqlquery);
-			MAST_Q3CTranslator translator = new MAST_Q3CTranslator();
+			Q3CTranslator translator = new Q3CTranslator(false);
 
 			assertEquals(
 			"SELECT aTable.id AS \"id\" , aTable.name AS \"name\" , aTable.ra AS \"ra\" , aTable.dec AS \"dec\"\n"+
@@ -121,11 +121,11 @@ public class TestQ3CTranslator {
 	}
 	
 	@Test
-	public void testMASTCrossmatch(){
+	public void testCrossmatchLessOrEqual(){
     // Same crossmatch query as testCrossmatch(), but using <= so that
-    // MAST_Q3CTranslator uses q3c_join() instead of q3c_dist().
+    // Q3CTranslator emits q3c_join() instead of q3c_dist().
     try{
-        String adqlquery = 
+        String adqlquery =
 			"SELECT TOP 100 geo_aTable.*, bTable.* " +
 			"FROM (" +
 			"    SELECT * FROM aTable" +
@@ -138,7 +138,7 @@ public class TestQ3CTranslator {
         parser.setQueryChecker(new DBChecker(tables));
 
         ADQLSet query = parser.parseQuery(adqlquery);
-        MAST_Q3CTranslator translator = new MAST_Q3CTranslator();
+        Q3CTranslator translator = new Q3CTranslator(false);
 
         String translated = translator.translate(query);
 		
