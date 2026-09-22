@@ -159,4 +159,57 @@ public class TestQ3CTranslator {
         fail("No error was expected from this translation. (see the console for more details)");
     }
 }
+
+	@Test
+	public void testNumericLessOrEqualDistanceStaysQ3CDist() {
+		// "radius <= DISTANCE(...)" means the distance is at least radius (outside
+		// the circle), which q3c_join() cannot express, so must be q3c_dist().
+		try {
+			String adqlquery = "SELECT top 1 * FROM aTable WHERE 0.5 <= DISTANCE(POINT('ICRS', 187.11, 11.58), POINT('ICRS', 187.15, 12))";
+
+			ADQLParser parser = new ADQLParser(ADQLVersion.V2_1, new DBChecker(tables), new ADQLQueryFactory(), null);
+			ADQLSet query = parser.parseQuery(adqlquery);
+			Q3CTranslator translator = new Q3CTranslator(false);
+
+			assertEquals(
+			"SELECT aTable.id AS \"id\" , aTable.name AS \"name\" , aTable.ra AS \"ra\" , aTable.dec AS \"dec\"\n"+
+			"FROM aTable\n" +
+			"WHERE 0.5 <= q3c_dist(187.11,11.58,187.15,12)\n" +
+			"LIMIT 1", translator.translate(query));
+
+		} catch (ParseException pe) {
+			pe.printStackTrace();
+			fail("The given ADQL query is completely correct. No error should have occurred while parsing it. (see the console for more details)");
+		} catch (TranslationException te) {
+			te.printStackTrace();
+			fail("No error was expected from this translation. (see the console for more details)");
+		}
+	}
+
+	@Test
+	public void testNumericGreaterOrEqualDistanceUsesQ3CJoin() {
+		// "radius >= DISTANCE(...)" is equivalent to "DISTANCE(...) <= radius"
+		// (within the circle), so this should use q3c_join() just like the
+		// DISTANCE(...) <= radius form.
+		try {
+			String adqlquery = "SELECT top 1 * FROM aTable WHERE 0.5 >= DISTANCE(POINT('ICRS', 187.11, 11.58), POINT('ICRS', 187.15, 12))";
+
+			ADQLParser parser = new ADQLParser(ADQLVersion.V2_1, new DBChecker(tables), new ADQLQueryFactory(), null);
+			ADQLSet query = parser.parseQuery(adqlquery);
+			Q3CTranslator translator = new Q3CTranslator(false);
+
+			assertEquals(
+			"SELECT aTable.id AS \"id\" , aTable.name AS \"name\" , aTable.ra AS \"ra\" , aTable.dec AS \"dec\"\n"+
+			"FROM aTable\n" +
+			"WHERE q3c_join(187.11,11.58,187.15,12,0.5)\n" +
+			"LIMIT 1", translator.translate(query));
+
+		} catch (ParseException pe) {
+			pe.printStackTrace();
+			fail("The given ADQL query is completely correct. No error should have occurred while parsing it. (see the console for more details)");
+		} catch (TranslationException te) {
+			te.printStackTrace();
+			fail("No error was expected from this translation. (see the console for more details)");
+		}
+	}
 }

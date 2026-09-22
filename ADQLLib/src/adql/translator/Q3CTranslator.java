@@ -160,8 +160,11 @@ public class Q3CTranslator extends PostgreSQLTranslator {
 	/**
 	 * Translate a {@link DistanceFunction} with a radius comparison into a q3c_join() call.
 	 *
-	 * <p>q3c_join() is boundary-inclusive and is used only for
-	 * {@code DISTANCE(...) <= radius} comparisons.</p>
+	 * <p>q3c_join() is boundary-inclusive and is used only for comparisons equivalent to
+	 * {@code DISTANCE(...) <= radius}, i.e. {@code DISTANCE(...) <= radius} or
+	 * {@code radius >= DISTANCE(...)}. The opposite comparisons ({@code DISTANCE(...) >= radius}
+	 * or {@code radius <= DISTANCE(...)}) mean the distance is outside the radius and are not
+	 * possible with q3c_join(), so they fall back to q3c_dist().</p>
 	 */
 	public String translate(DistanceFunction fct, final String radius) throws TranslationException{
 		StringBuffer str = new StringBuffer("q3c_join(");
@@ -194,7 +197,7 @@ public class Q3CTranslator extends PostgreSQLTranslator {
 			return "'" + translate(comp.getLeftOperand()) + "' " + comp.getOperator().toADQL() + " " + translate(comp.getRightOperand());
 		else if ((comp.getLeftOperand() instanceof DistanceFunction) && (comp.getOperator() == ComparisonOperator.LESS_OR_EQUAL) && comp.getRightOperand().isNumeric())
 			return translate((DistanceFunction) comp.getLeftOperand(), translate(comp.getRightOperand()));
-		else if ((comp.getRightOperand() instanceof DistanceFunction) && (comp.getOperator() == ComparisonOperator.LESS_OR_EQUAL) && comp.getLeftOperand().isNumeric())
+		else if ((comp.getRightOperand() instanceof DistanceFunction) && (comp.getOperator() == ComparisonOperator.GREATER_OR_EQUAL) && comp.getLeftOperand().isNumeric())
 			return translate((DistanceFunction) comp.getRightOperand(), translate(comp.getLeftOperand()));
 		else
 			return super.translate(comp);
