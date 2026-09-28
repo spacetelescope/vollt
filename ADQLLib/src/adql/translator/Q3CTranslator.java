@@ -44,8 +44,17 @@ import adql.query.operand.function.geometry.PolygonFunction;
  * </p>
  *
  * <p>
- * 	{@code DISTANCE(...) <= radius} comparisons are translated to the q3c_join() function,
- *  which is faster for JOIN clauses. All other distance comparisons use q3c_dist().
+ * 	Comparisons equivalent to {@code DISTANCE(p1, p2) <= radius} (also
+ * 	{@code radius >= DISTANCE(p1, p2)}) are translated to {@code q3c_join()},
+ * 	which is faster for JOIN clauses. All other distance comparisons use
+ * 	{@code q3c_dist()}.
+ * </p>
+ *
+ * <p>
+ * 	{@code q3c_join(ra1, dec1, ra2, dec2, radius)} uses a Q3C index only on
+ * 	the second coordinate pair. This translator preserves ADQL
+ * 	{@code DISTANCE(p1, p2)} order, so the indexed catalog must be the second
+ * 	{@code POINT}.
  * </p>
  *
  * @author Gr&eacute;gory Mantelet (CDS;ARI) / Theresa Dower (STScI)
@@ -165,6 +174,9 @@ public class Q3CTranslator extends PostgreSQLTranslator {
 	 * {@code radius >= DISTANCE(...)}. The opposite comparisons ({@code DISTANCE(...) >= radius}
 	 * or {@code radius <= DISTANCE(...)}) mean the distance is outside the radius and are not
 	 * possible with q3c_join(), so they fall back to q3c_dist().</p>
+	 *
+	 * <p>Arguments follow ADQL {@code DISTANCE(p1, p2)} order. Q3C indexes only
+	 * the second pair, so that {@code POINT} must be the indexed catalog.</p>
 	 */
 	public String translate(DistanceFunction fct, final String radius) throws TranslationException{
 		StringBuffer str = new StringBuffer("q3c_join(");
