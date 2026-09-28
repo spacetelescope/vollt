@@ -43,6 +43,20 @@ import adql.query.operand.function.geometry.PolygonFunction;
  * 	class. The other functions are managed by {@link PostgreSQLTranslator}.
  * </p>
  *
+ * <p>
+ * 	Comparisons equivalent to {@code DISTANCE(p1, p2) <= radius} (also
+ * 	{@code radius >= DISTANCE(p1, p2)}) are translated to {@code q3c_join()},
+ * 	which is faster for JOIN clauses. All other distance comparisons use
+ * 	{@code q3c_dist()}.
+ * </p>
+ *
+ * <p>
+ * 	{@code q3c_join(ra1, dec1, ra2, dec2, radius)} uses a Q3C index only on
+ * 	the second coordinate pair. This translator preserves ADQL
+ * 	{@code DISTANCE(p1, p2)} order, so the indexed catalog must be the second
+ * 	{@code POINT}.
+ * </p>
+ *
  * @author Gr&eacute;gory Mantelet (CDS;ARI) / Theresa Dower (STScI)
  * @version 1.5 (2025)
  */
@@ -152,6 +166,27 @@ public class Q3CTranslator extends PostgreSQLTranslator {
 		return str.toString();
 	}
 
+	/**
+	 * Translate a {@link DistanceFunction} with a radius comparison into a q3c_join() call.
+	 *
+	 * <p>q3c_join() is boundary-inclusive and is used only for comparisons equivalent to
+	 * {@code DISTANCE(...) <= radius}, i.e. {@code DISTANCE(...) <= radius} or
+	 * {@code radius >= DISTANCE(...)}. The opposite comparisons ({@code DISTANCE(...) >= radius}
+	 * or {@code radius <= DISTANCE(...)}) mean the distance is outside the radius and are not
+	 * possible with q3c_join(), so they fall back to q3c_dist().</p>
+	 *
+	 * <p>Arguments follow ADQL {@code DISTANCE(p1, p2)} order. Q3C indexes only
+	 * the second pair, so that {@code POINT} must be the indexed catalog.</p>
+	 */
+	public String translate(DistanceFunction fct, final String radius) throws TranslationException{
+		StringBuffer str = new StringBuffer("q3c_join(");
+		str.append(translate(fct.getP1())).append(",");
+		str.append(translate(fct.getP2())).append(",");
+		str.append(radius);
+		str.append(")");
+		return str.toString();
+	}
+
 	@Override
 	public String translate(ContainsFunction fct) throws TranslationException{
 		StringBuffer str = new StringBuffer("q3c_radial_query(");
@@ -172,6 +207,10 @@ public class Q3CTranslator extends PostgreSQLTranslator {
 			return translate(comp.getLeftOperand()) + " " + comp.getOperator().toADQL() + " '" + translate(comp.getRightOperand()) + "'";
 		else if ((comp.getRightOperand() instanceof ContainsFunction || comp.getRightOperand() instanceof IntersectsFunction) && (comp.getOperator() == ComparisonOperator.EQUAL || comp.getOperator() == ComparisonOperator.NOT_EQUAL) && comp.getLeftOperand().isNumeric())
 			return "'" + translate(comp.getLeftOperand()) + "' " + comp.getOperator().toADQL() + " " + translate(comp.getRightOperand());
+		else if ((comp.getLeftOperand() instanceof DistanceFunction) && (comp.getOperator() == ComparisonOperator.LESS_OR_EQUAL) && comp.getRightOperand().isNumeric())
+			return translate((DistanceFunction) comp.getLeftOperand(), translate(comp.getRightOperand()));
+		else if ((comp.getRightOperand() instanceof DistanceFunction) && (comp.getOperator() == ComparisonOperator.GREATER_OR_EQUAL) && comp.getLeftOperand().isNumeric())
+			return translate((DistanceFunction) comp.getRightOperand(), translate(comp.getLeftOperand()));
 		else
 			return super.translate(comp);
 	}
