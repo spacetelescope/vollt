@@ -353,6 +353,28 @@ public class TestADQLParser {
 			fail("Unexpected error with valid bitwise operations! (see console for more details)");
 		}
 	}
+
+	@Test
+     /* with bitwise operators reintroduced for MAST functionality */
+    public void testOperatorPrecedence() {
+        ADQLParser parser = new ADQLParser(ADQLVersion.V2_1);
+        try {
+            /* test general precedence where upstream code has failed */
+            assertEquals("SELECT 1-2-3\nFROM foo", parser.parseQuery("SELECT 1-2-3 FROM foo").toADQL());
+
+            /* test precedence with bitwise operators */
+            /* note math clause goes straight to database, where the db handles it to its own liking */
+            /* if mssql and postgres are different, should we document or override? */
+            assertEquals("SELECT 1+2&3\nFROM foo", parser.parseQuery("SELECT 1+2&3 FROM foo").toADQL());
+            assertEquals("SELECT 1&2|3\nFROM foo", parser.parseQuery("SELECT 1&2|3 FROM foo").toADQL());
+            assertEquals("SELECT 1&(2+3)\nFROM foo", parser.parseQuery("SELECT 1&(2+3) FROM foo").toADQL());
+            assertEquals("SELECT 1&2+3\nFROM foo", parser.parseQuery("SELECT 1&2+3 FROM foo").toADQL());
+            assertEquals("SELECT 1|2&3\nFROM foo", parser.parseQuery("SELECT 1|2&3 FROM foo").toADQL());
+        } catch(Exception ex) {
+            ex.printStackTrace();
+            fail("Unexpected error with valid bitwise operations! (see console for more details)");
+        }
+    }
 	
 	@Test
 	 /* bitwise operators reintroduced for MAST functionality, including hex support */
